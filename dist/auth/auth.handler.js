@@ -1,14 +1,14 @@
 import bcrypt from "bcrypt";
 import { EmailSenderRequiredException, InvalidCredentialsException, InvalidRefreshTokenException, InvalidUserException, PassauthEmailAlreadyTakenException, } from "./auth.exceptions";
-import { DEFAULT_JWT_EXPIRATION_MS, DEFAULT_REFRESH_EXPIRATION_TOKEN_MS, DEFAULT_ROUNDS, } from "./auth.constants";
-import { decodeAccessToken, generateAccessToken, generateRefreshToken, hash, } from "./auth.utils";
+import { DEFAULT_JWT_EXPIRATION_MS, DEFAULT_REFRESH_EXPIRATION_TOKEN_MS, DEFAULT_SALTING_ROUNDS, } from "./auth.constants";
+import { decodeAccessToken, verifyAccessToken, generateAccessToken, generateRefreshToken, hash, } from "./auth.utils";
 export class AuthHandler {
     constructor(options, repo, emailSender) {
         this.repo = repo;
         this.emailSender = emailSender;
         this.refreshTokensLocalChaching = {};
         this.config = {
-            SALTING_ROUNDS: options.saltingRounds || DEFAULT_ROUNDS,
+            SALTING_ROUNDS: options.saltingRounds || DEFAULT_SALTING_ROUNDS,
             ACCESS_TOKEN_EXPIRATION_MS: options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS,
             REFRESH_TOKEN_EXPIRATION_MS: options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
             REQUIRE_EMAIL_CONFIRMATION: options.requireEmailConfirmation || false,
@@ -39,7 +39,15 @@ export class AuthHandler {
             throw new InvalidCredentialsException();
         }
         const tokens = this.generateTokens(user.id);
+        console.log(".....................", this.refreshTokensLocalChaching);
         return tokens;
+    }
+    verifyAccessToken(accessToken) {
+        const decodedToken = verifyAccessToken(accessToken, this.config.SECRET_KEY);
+        if (!decodedToken) {
+            throw new InvalidCredentialsException();
+        }
+        return decodedToken;
     }
     async validateRefreshToken(userId, refreshToken) {
         const cachedToken = this.refreshTokensLocalChaching[userId];

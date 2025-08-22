@@ -1,16 +1,17 @@
 import bcrypt from "bcrypt";
 
 import {
-  EmailSenderRequiredException,
-  InvalidCredentialsException,
-  InvalidRefreshTokenException,
-  InvalidUserException,
+  PassauthEmailSenderRequiredException,
+  PassauthInvalidCredentialsException,
+  PassauthInvalidRefreshTokenException,
+  PassauthInvalidUserException,
   PassauthEmailAlreadyTakenException,
+  PassauthInvalidAccessTokenException,
 } from "./auth.exceptions";
 import {
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
-  DEFAULT_ROUNDS,
+  DEFAULT_SALTING_ROUNDS,
 } from "./auth.constants";
 import type {
   AuthRepo,
@@ -23,9 +24,11 @@ import type {
 import type { EmailSender } from "../email/email.handler";
 import {
   decodeAccessToken,
+  verifyAccessToken,
   generateAccessToken,
   generateRefreshToken,
   hash,
+  compareHash,
 } from "./auth.utils";
 
 export class AuthHandler<T extends User> {
@@ -49,7 +52,7 @@ export class AuthHandler<T extends User> {
     private emailSender?: EmailSender
   ) {
     this.config = {
-      SALTING_ROUNDS: options.saltingRounds || DEFAULT_ROUNDS,
+      SALTING_ROUNDS: options.saltingRounds || DEFAULT_SALTING_ROUNDS,
       ACCESS_TOKEN_EXPIRATION_MS:
         options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS,
       REFRESH_TOKEN_EXPIRATION_MS:
@@ -82,16 +85,13 @@ export class AuthHandler<T extends User> {
     const user = await this.repo.getUser(params.email);
 
     if (!user) {
-      throw new InvalidUserException(params.email);
+      throw new PassauthInvalidUserException(params.email);
     }
 
-    const isValidPassword = await this.comparePasswords(
-      params.password,
-      user.password
-    );
+    const isValidPassword = await compareHash(params.password, user.password);
 
     if (!isValidPassword) {
-      throw new InvalidCredentialsException();
+      throw new PassauthInvalidCredentialsException();
     }
 
     const tokens = this.generateTokens(user.id);
@@ -99,25 +99,37 @@ export class AuthHandler<T extends User> {
     return tokens;
   }
 
+  verifyAccessToken(accessToken: string) {
+    const decodedToken = verifyAccessToken(accessToken, this.config.SECRET_KEY);
+
+    if (!decodedToken) {
+      throw new PassauthInvalidAccessTokenException();
+    }
+
+    return decodedToken;
+  }
+
   private async validateRefreshToken(userId: ID, refreshToken: string) {
     const cachedToken = this.refreshTokensLocalChaching[userId];
 
     if (!cachedToken || !cachedToken.token) {
-      throw new InvalidRefreshTokenException();
+      throw new PassauthInvalidRefreshTokenException();
     }
 
-    const hashedToken = await this.hashRefreshToken(refreshToken, userId);
-
-    const isValid = hashedToken === cachedToken.token;
+    const isValid = await this.compareRefeshToken(
+      refreshToken,
+      userId,
+      cachedToken.token
+    );
 
     if (!isValid) {
-      throw new InvalidRefreshTokenException();
+      throw new PassauthInvalidRefreshTokenException();
     }
 
     const now = Date.now();
 
     if (now >= cachedToken.exp) {
-      throw new InvalidRefreshTokenException();
+      throw new PassauthInvalidRefreshTokenException();
     }
   }
 
@@ -126,7 +138,7 @@ export class AuthHandler<T extends User> {
 
     await this.validateRefreshToken(sub!, refreshToken);
 
-    const tokens = this.generateTokens(sub);
+    const tokens = await this.generateTokens(sub);
 
     return tokens;
   }
@@ -140,14 +152,30 @@ export class AuthHandler<T extends User> {
     refreshToken: string,
     exp: number
   ) {
-    this.refreshTokensLocalChaching[userId] = {
-      token: await this.hashRefreshToken(refreshToken, userId),
+    const hashedToken = await this.hashRefreshToken(refreshToken, userId);
+
+    const tokenData = {
+      token: hashedToken,
       exp,
     };
+
+    this.refreshTokensLocalChaching[userId] = tokenData;
   }
 
-  private hashRefreshToken(token: string, userId: ID) {
-    return hash(`${userId}${token}`, 2);
+  private async hashRefreshToken(token: string, userId: ID) {
+    const hashed = await hash(`${userId}${token}`, 2);
+
+    return hashed;
+  }
+
+  private async compareRefeshToken(
+    token: string,
+    userId: ID,
+    hashedToken: string
+  ) {
+    const isValid = await compareHash(`${userId}${token}`, hashedToken);
+
+    return isValid;
   }
 
   async resetPassword(email: string) {
@@ -158,7 +186,7 @@ export class AuthHandler<T extends User> {
     const success = await this.emailSender.sendResetPasswordEmail(email);
   }
 
-  private generateTokens(userId: ID) {
+  private async generateTokens(userId: ID) {
     const accessToken = generateAccessToken({
       userId,
       secretKey: this.config.SECRET_KEY,
@@ -168,14 +196,8 @@ export class AuthHandler<T extends User> {
       expiresIn: this.config.REFRESH_TOKEN_EXPIRATION_MS,
     });
 
-    this.saveRefreshToken(userId, refreshToken, exp);
+    await this.saveRefreshToken(userId, refreshToken, exp);
 
     return { accessToken, refreshToken };
-  }
-
-  private async comparePasswords(password: string, hash: string) {
-    const isValid = await bcrypt.compare(password, hash);
-
-    return isValid;
   }
 }

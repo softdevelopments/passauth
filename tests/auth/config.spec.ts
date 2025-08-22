@@ -1,11 +1,8 @@
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import { Passauth } from "../../dist";
-import { PassauthConfiguration, User } from "../../dist/auth/auth.types";
-import {
-  PassauthEmailAlreadyTakenException,
-  PassauthMissingConfigurationException,
-} from "../../dist/auth/auth.exceptions";
-import { AuthRepo } from "../../dist/auth/auth.types";
+import { describe, it, expect } from "@jest/globals";
+import { Passauth } from "../../src";
+import { PassauthConfiguration, User } from "../../src/auth/auth.types";
+import { PassauthMissingConfigurationException } from "../../src/auth/auth.exceptions";
+import { AuthRepo } from "../../src/auth/auth.types";
 
 const repoMock: AuthRepo<User> = {
   getUser: async (email) => null,

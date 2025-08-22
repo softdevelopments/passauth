@@ -18,31 +18,31 @@ export class PassauthEmailAlreadyTakenException extends PassauthException {
   }
 }
 
-export class InvalidUserException extends PassauthException {
+export class PassauthInvalidUserException extends PassauthException {
   constructor(email: string) {
     super("login", "InvalidUser", `Invalid email: ${email}`);
   }
 }
 
-export class InvalidCredentialsException extends PassauthException {
+export class PassauthInvalidCredentialsException extends PassauthException {
   constructor() {
     super("login", "InvalidCredentials", "Invalid email or password");
   }
 }
 
-export class InvalidAccessTokenException extends PassauthException {
+export class PassauthInvalidAccessTokenException extends PassauthException {
   constructor() {
     super("login", "InvalidAccessToken", "Invalid access token");
   }
 }
 
-export class InvalidRefreshTokenException extends PassauthException {
+export class PassauthInvalidRefreshTokenException extends PassauthException {
   constructor() {
     super("login", "InvalidRefreshToken", "Invalid refresh token");
   }
 }
 
-export class EmailSenderRequiredException extends PassauthException {
+export class PassauthEmailSenderRequiredException extends PassauthException {
   constructor() {
     super(
       "config",

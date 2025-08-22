@@ -11,6 +11,7 @@ export declare class AuthHandler<T extends User> {
         accessToken: string;
         refreshToken: string;
     }>;
+    verifyAccessToken(accessToken: string): import("jsonwebtoken").JwtPayload;
     private validateRefreshToken;
     refreshToken(accessToken: string, refreshToken: string): Promise<{
         accessToken: string;
