@@ -1,12 +1,12 @@
 import type { AuthRepo, HandlerOptions, ID, LoginParams, RegisterParams, User } from "./auth.types";
 import type { EmailSender } from "../email/email.handler";
 export declare class AuthHandler<T extends User> {
-    private options;
     private repo;
     private emailSender?;
     private refreshTokensLocalChaching;
+    private config;
     constructor(options: HandlerOptions, repo: AuthRepo<T>, emailSender?: EmailSender | undefined);
-    register(params: RegisterParams): Promise<void>;
+    register(params: RegisterParams): Promise<T>;
     login(params: LoginParams): Promise<{
         accessToken: string;
         refreshToken: string;

@@ -1,19 +1,19 @@
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import { EmailSenderRequiredException, InvalidCredentialsException, InvalidRefreshTokenException, InvalidUserException, PassauthEmailAlreadyTakenException, } from "./auth.exceptions";
 import { DEFAULT_JWT_EXPIRATION_MS, DEFAULT_REFRESH_EXPIRATION_TOKEN_MS, DEFAULT_ROUNDS, } from "./auth.constants";
 import { decodeAccessToken, generateAccessToken, generateRefreshToken, hash, } from "./auth.utils";
 export class AuthHandler {
     constructor(options, repo, emailSender) {
-        this.options = options;
         this.repo = repo;
         this.emailSender = emailSender;
         this.refreshTokensLocalChaching = {};
-        this.options.saltingRounds = options.saltingRounds || DEFAULT_ROUNDS;
-        this.options.accessTokenExpirationMs =
-            options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS;
-        this.options.refreshTokenExpirationMs =
-            options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS;
+        this.config = {
+            SALTING_ROUNDS: options.saltingRounds || DEFAULT_ROUNDS,
+            ACCESS_TOKEN_EXPIRATION_MS: options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS,
+            REFRESH_TOKEN_EXPIRATION_MS: options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
+            REQUIRE_EMAIL_CONFIRMATION: options.requireEmailConfirmation || false,
+            SECRET_KEY: options.secretKey,
+        };
     }
     async register(params) {
         const existingUser = await this.repo.getUser(params.email);
@@ -22,11 +22,12 @@ export class AuthHandler {
         }
         const createdUser = await this.repo.createUser({
             ...params,
-            password: await hash(params.password, this.options.saltingRounds),
+            password: await hash(params.password, this.config.SALTING_ROUNDS),
         });
-        if (this.options.requireEmailConfirmation) {
+        if (this.config.REQUIRE_EMAIL_CONFIRMATION) {
             await this.emailSender?.sendConfirmPasswordEmail(createdUser.email);
         }
+        return createdUser;
     }
     async login(params) {
         const user = await this.repo.getUser(params.email);
@@ -82,11 +83,11 @@ export class AuthHandler {
     generateTokens(userId) {
         const accessToken = generateAccessToken({
             userId,
-            secretKey: this.options.secretKey,
-            expiresIn: this.options.accessTokenExpirationMs,
+            secretKey: this.config.SECRET_KEY,
+            expiresIn: this.config.ACCESS_TOKEN_EXPIRATION_MS,
         });
         const { token: refreshToken, exp } = generateRefreshToken({
-            expiresIn: this.options.refreshTokenExpirationMs,
+            expiresIn: this.config.REFRESH_TOKEN_EXPIRATION_MS,
         });
         this.saveRefreshToken(userId, refreshToken, exp);
         return { accessToken, refreshToken };

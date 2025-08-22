@@ -1,5 +1,4 @@
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 
 import {
   EmailSenderRequiredException,
@@ -36,17 +35,28 @@ export class AuthHandler<T extends User> {
       exp: number;
     };
   } = {};
+  private config: {
+    SALTING_ROUNDS: number;
+    ACCESS_TOKEN_EXPIRATION_MS: number;
+    REFRESH_TOKEN_EXPIRATION_MS: number;
+    REQUIRE_EMAIL_CONFIRMATION: boolean;
+    SECRET_KEY: string;
+  };
 
   constructor(
-    private options: HandlerOptions,
+    options: HandlerOptions,
     private repo: AuthRepo<T>,
     private emailSender?: EmailSender
   ) {
-    this.options.saltingRounds = options.saltingRounds || DEFAULT_ROUNDS;
-    this.options.accessTokenExpirationMs =
-      options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS;
-    this.options.refreshTokenExpirationMs =
-      options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS;
+    this.config = {
+      SALTING_ROUNDS: options.saltingRounds || DEFAULT_ROUNDS,
+      ACCESS_TOKEN_EXPIRATION_MS:
+        options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS,
+      REFRESH_TOKEN_EXPIRATION_MS:
+        options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
+      REQUIRE_EMAIL_CONFIRMATION: options.requireEmailConfirmation || false,
+      SECRET_KEY: options.secretKey,
+    };
   }
 
   async register(params: RegisterParams) {
@@ -58,10 +68,10 @@ export class AuthHandler<T extends User> {
 
     const createdUser = await this.repo.createUser({
       ...params,
-      password: await hash(params.password, this.options.saltingRounds),
+      password: await hash(params.password, this.config.SALTING_ROUNDS),
     });
 
-    if (this.options.requireEmailConfirmation) {
+    if (this.config.REQUIRE_EMAIL_CONFIRMATION) {
       await this.emailSender?.sendConfirmPasswordEmail(createdUser.email);
     }
 
@@ -151,11 +161,11 @@ export class AuthHandler<T extends User> {
   private generateTokens(userId: ID) {
     const accessToken = generateAccessToken({
       userId,
-      secretKey: this.options.secretKey,
-      expiresIn: this.options.accessTokenExpirationMs,
+      secretKey: this.config.SECRET_KEY,
+      expiresIn: this.config.ACCESS_TOKEN_EXPIRATION_MS,
     });
     const { token: refreshToken, exp } = generateRefreshToken({
-      expiresIn: this.options.refreshTokenExpirationMs,
+      expiresIn: this.config.REFRESH_TOKEN_EXPIRATION_MS,
     });
 
     this.saveRefreshToken(userId, refreshToken, exp);
