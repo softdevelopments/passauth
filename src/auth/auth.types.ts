@@ -25,9 +25,9 @@ export interface AuthRepo<T extends User> {
 
 export type HandlerOptions = {
   secretKey: string;
-  saltingRounds: number;
-  accessTokenExpirationMs: number;
-  refreshTokenExpirationMs: number;
+  saltingRounds?: number;
+  accessTokenExpirationMs?: number;
+  refreshTokenExpirationMs?: number;
   requireEmailConfirmation?: boolean;
 };
 

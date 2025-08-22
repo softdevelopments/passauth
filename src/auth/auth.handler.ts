@@ -64,6 +64,8 @@ export class AuthHandler<T extends User> {
     if (this.options.requireEmailConfirmation) {
       await this.emailSender?.sendConfirmPasswordEmail(createdUser.email);
     }
+
+    return createdUser;
   }
 
   async login(params: LoginParams) {

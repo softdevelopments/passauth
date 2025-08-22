@@ -1,0 +1,1 @@
+{"version":3,"file":"email.exceptions.d.ts","sourceRoot":"","sources":["../../src/email/email.exceptions.ts"],"names":[],"mappings":"AAAA,qBAAa,4BAA6B,SAAQ,KAAK;IAGlC,OAAO,EAAE,MAAM;IAAS,IAAI,EAAE,MAAM;IAFhD,MAAM,SAA2B;gBAErB,OAAO,EAAE,MAAM,EAAS,IAAI,EAAE,MAAM,EAAE,OAAO,EAAE,MAAM;CAGzE;AAED,qBAAa,gDAAiD,SAAQ,4BAA4B;gBACpF,GAAG,EAAE,MAAM;CAGxB"}

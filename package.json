@@ -10,7 +10,7 @@
     "dist"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand --detectOpenHandles --forceExit",
     "build": "tsc",
     "dev": "tsx watch src/index.ts"
   },
@@ -18,9 +18,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@jest/globals": "^30.0.5",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.0",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.4.1",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2"
   },
