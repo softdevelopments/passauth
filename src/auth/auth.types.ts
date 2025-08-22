@@ -1,3 +1,5 @@
+import type { EmailPluginOptions } from "../email/email.types";
+
 export type ID = string | number;
 
 export type User = {
@@ -19,9 +21,6 @@ export type LoginParams = {
 export interface AuthRepo<T extends User> {
   getUser(email: string): Promise<T | null>;
   createUser(params: RegisterParams): Promise<T>;
-  getRefreshToken(userId: ID): Promise<string | null | undefined>;
-  saveRefreshToken(userId: ID, refreshToken: string): Promise<void>;
-  invalidateRefreshToken(userId: ID): Promise<void>;
 }
 
 export type HandlerOptions = {
@@ -29,13 +28,10 @@ export type HandlerOptions = {
   saltingRounds: number;
   accessTokenExpirationMs: number;
   refreshTokenExpirationMs: number;
+  requireEmailConfirmation?: boolean;
 };
 
 export type PassauthConfiguration<T extends User> = HandlerOptions & {
   repo: AuthRepo<T>;
-};
-
-export type TokenPayload = {
-  id: ID;
-  tokenId: string;
+  emailPlugin?: EmailPluginOptions;
 };

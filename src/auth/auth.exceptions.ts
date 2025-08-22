@@ -30,8 +30,24 @@ export class InvalidCredentialsException extends PassauthException {
   }
 }
 
+export class InvalidAccessTokenException extends PassauthException {
+  constructor() {
+    super("login", "InvalidAccessToken", "Invalid access token");
+  }
+}
+
 export class InvalidRefreshTokenException extends PassauthException {
   constructor() {
-    super("refresh token", "InvalidRefreshToken", "Invalid refresh token");
+    super("login", "InvalidRefreshToken", "Invalid refresh token");
+  }
+}
+
+export class EmailSenderRequiredException extends PassauthException {
+  constructor() {
+    super(
+      "config",
+      "EmailSenderPluginRequired",
+      "Email sender plugin is required"
+    );
   }
 }
