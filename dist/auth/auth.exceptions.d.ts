@@ -10,19 +10,22 @@ export declare class PassauthMissingConfigurationException extends PassauthExcep
 export declare class PassauthEmailAlreadyTakenException extends PassauthException {
     constructor();
 }
-export declare class InvalidUserException extends PassauthException {
+export declare class PassauthInvalidUserException extends PassauthException {
     constructor(email: string);
 }
-export declare class InvalidCredentialsException extends PassauthException {
+export declare class PassauthEmailNotVerifiedException extends PassauthException {
+    constructor(email: string);
+}
+export declare class PassauthInvalidCredentialsException extends PassauthException {
     constructor();
 }
-export declare class InvalidAccessTokenException extends PassauthException {
+export declare class PassauthInvalidAccessTokenException extends PassauthException {
     constructor();
 }
-export declare class InvalidRefreshTokenException extends PassauthException {
+export declare class PassauthInvalidRefreshTokenException extends PassauthException {
     constructor();
 }
-export declare class EmailSenderRequiredException extends PassauthException {
+export declare class PassauthEmailSenderRequiredException extends PassauthException {
     constructor();
 }
 //# sourceMappingURL=auth.exceptions.d.ts.map

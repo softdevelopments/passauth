@@ -3,7 +3,6 @@ export declare enum TemplateTypes {
     CONFIRM_EMAIL = "confirm-email"
 }
 export type SendEmailArgs = {
-    senderEmail: string;
     senderName: string;
     from: string;
     to: string[];

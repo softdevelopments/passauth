@@ -16,27 +16,32 @@ export class PassauthEmailAlreadyTakenException extends PassauthException {
         super("register", "EmailAlreadyTaken", "Email already taken");
     }
 }
-export class InvalidUserException extends PassauthException {
+export class PassauthInvalidUserException extends PassauthException {
     constructor(email) {
         super("login", "InvalidUser", `Invalid email: ${email}`);
     }
 }
-export class InvalidCredentialsException extends PassauthException {
+export class PassauthEmailNotVerifiedException extends PassauthException {
+    constructor(email) {
+        super("login", "EmailNotVerified", `Email not verified: ${email}`);
+    }
+}
+export class PassauthInvalidCredentialsException extends PassauthException {
     constructor() {
         super("login", "InvalidCredentials", "Invalid email or password");
     }
 }
-export class InvalidAccessTokenException extends PassauthException {
+export class PassauthInvalidAccessTokenException extends PassauthException {
     constructor() {
         super("login", "InvalidAccessToken", "Invalid access token");
     }
 }
-export class InvalidRefreshTokenException extends PassauthException {
+export class PassauthInvalidRefreshTokenException extends PassauthException {
     constructor() {
         super("login", "InvalidRefreshToken", "Invalid refresh token");
     }
 }
-export class EmailSenderRequiredException extends PassauthException {
+export class PassauthEmailSenderRequiredException extends PassauthException {
     constructor() {
         super("config", "EmailSenderPluginRequired", "Email sender plugin is required");
     }

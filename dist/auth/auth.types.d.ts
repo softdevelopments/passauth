@@ -4,6 +4,7 @@ export type User = {
     id: ID;
     email: string;
     password: string;
+    emailVerified?: boolean;
 };
 export type RegisterParams = {
     email: string;

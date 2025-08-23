@@ -24,6 +24,12 @@ export class PassauthInvalidUserException extends PassauthException {
   }
 }
 
+export class PassauthEmailNotVerifiedException extends PassauthException {
+  constructor(email: string) {
+    super("login", "EmailNotVerified", `Email not verified: ${email}`);
+  }
+}
+
 export class PassauthInvalidCredentialsException extends PassauthException {
   constructor() {
     super("login", "InvalidCredentials", "Invalid email or password");

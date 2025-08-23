@@ -4,7 +4,6 @@ export enum TemplateTypes {
 }
 
 export type SendEmailArgs = {
-  senderEmail: string;
   senderName: string;
   from: string;
   to: string[];

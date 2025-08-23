@@ -1,14 +1,19 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { InvalidAccessTokenException } from "./auth.exceptions";
+import { PassauthInvalidAccessTokenException } from "./auth.exceptions";
 export const hash = async (password, saltingRounds) => {
     const salt = await bcrypt.genSalt(saltingRounds);
-    return bcrypt.hash(password, salt);
+    const hashed = await bcrypt.hash(password, salt);
+    return hashed;
+};
+export const compareHash = async (value, hash) => {
+    const isValid = await bcrypt.compare(value, hash);
+    return isValid;
 };
 export const generateAccessToken = ({ userId, secretKey, expiresIn, }) => {
     return jwt.sign({ sub: userId, jti: crypto.randomBytes(16).toString("hex") }, secretKey, {
-        expiresIn,
+        expiresIn: `${expiresIn}`,
     });
 };
 export const generateRefreshToken = ({ expiresIn }) => {
@@ -23,7 +28,7 @@ export const verifyAccessToken = (token, secretKey) => {
         return decoded;
     }
     catch (error) {
-        throw new InvalidAccessTokenException();
+        throw new PassauthInvalidAccessTokenException();
     }
 };
 export const decodeAccessToken = (token) => {

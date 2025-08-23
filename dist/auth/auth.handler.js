@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
-import { EmailSenderRequiredException, InvalidCredentialsException, InvalidRefreshTokenException, InvalidUserException, PassauthEmailAlreadyTakenException, } from "./auth.exceptions";
+import { PassauthEmailSenderRequiredException, PassauthInvalidCredentialsException, PassauthInvalidRefreshTokenException, PassauthInvalidUserException, PassauthEmailAlreadyTakenException, PassauthInvalidAccessTokenException, PassauthEmailNotVerifiedException, } from "./auth.exceptions";
 import { DEFAULT_JWT_EXPIRATION_MS, DEFAULT_REFRESH_EXPIRATION_TOKEN_MS, DEFAULT_SALTING_ROUNDS, } from "./auth.constants";
-import { decodeAccessToken, verifyAccessToken, generateAccessToken, generateRefreshToken, hash, } from "./auth.utils";
+import { decodeAccessToken, verifyAccessToken, generateAccessToken, generateRefreshToken, hash, compareHash, } from "./auth.utils";
 export class AuthHandler {
     constructor(options, repo, emailSender) {
         this.repo = repo;
@@ -25,70 +25,80 @@ export class AuthHandler {
             password: await hash(params.password, this.config.SALTING_ROUNDS),
         });
         if (this.config.REQUIRE_EMAIL_CONFIRMATION) {
-            await this.emailSender?.sendConfirmPasswordEmail(createdUser.email);
+            const { success } = await this.emailSender.sendConfirmPasswordEmail(createdUser.email);
+            return { user: createdUser, emailSent: success };
         }
-        return createdUser;
+        return { user: createdUser, emailSent: false };
     }
     async login(params) {
         const user = await this.repo.getUser(params.email);
         if (!user) {
-            throw new InvalidUserException(params.email);
+            throw new PassauthInvalidUserException(params.email);
         }
-        const isValidPassword = await this.comparePasswords(params.password, user.password);
+        if (this.config.REQUIRE_EMAIL_CONFIRMATION && !user.emailVerified) {
+            throw new PassauthEmailNotVerifiedException(params.email);
+        }
+        const isValidPassword = await compareHash(params.password, user.password);
         if (!isValidPassword) {
-            throw new InvalidCredentialsException();
+            throw new PassauthInvalidCredentialsException();
         }
         const tokens = this.generateTokens(user.id);
-        console.log(".....................", this.refreshTokensLocalChaching);
         return tokens;
     }
     verifyAccessToken(accessToken) {
         const decodedToken = verifyAccessToken(accessToken, this.config.SECRET_KEY);
         if (!decodedToken) {
-            throw new InvalidCredentialsException();
+            throw new PassauthInvalidAccessTokenException();
         }
         return decodedToken;
-    }
-    async validateRefreshToken(userId, refreshToken) {
-        const cachedToken = this.refreshTokensLocalChaching[userId];
-        if (!cachedToken || !cachedToken.token) {
-            throw new InvalidRefreshTokenException();
-        }
-        const hashedToken = await this.hashRefreshToken(refreshToken, userId);
-        const isValid = hashedToken === cachedToken.token;
-        if (!isValid) {
-            throw new InvalidRefreshTokenException();
-        }
-        const now = Date.now();
-        if (now >= cachedToken.exp) {
-            throw new InvalidRefreshTokenException();
-        }
     }
     async refreshToken(accessToken, refreshToken) {
         const { sub } = decodeAccessToken(accessToken);
         await this.validateRefreshToken(sub, refreshToken);
-        const tokens = this.generateTokens(sub);
+        const tokens = await this.generateTokens(sub);
         return tokens;
     }
     revokeRefreshToken(userId) {
         delete this.refreshTokensLocalChaching[userId];
     }
+    async validateRefreshToken(userId, refreshToken) {
+        const cachedToken = this.refreshTokensLocalChaching[userId];
+        if (!cachedToken || !cachedToken.token) {
+            throw new PassauthInvalidRefreshTokenException();
+        }
+        const isValid = await this.compareRefeshToken(refreshToken, userId, cachedToken.token);
+        if (!isValid) {
+            throw new PassauthInvalidRefreshTokenException();
+        }
+        const now = Date.now();
+        if (now >= cachedToken.exp) {
+            throw new PassauthInvalidRefreshTokenException();
+        }
+    }
     async saveRefreshToken(userId, refreshToken, exp) {
-        this.refreshTokensLocalChaching[userId] = {
-            token: await this.hashRefreshToken(refreshToken, userId),
+        const hashedToken = await this.hashRefreshToken(refreshToken, userId);
+        const tokenData = {
+            token: hashedToken,
             exp,
         };
+        this.refreshTokensLocalChaching[userId] = tokenData;
     }
-    hashRefreshToken(token, userId) {
-        return hash(`${userId}${token}`, 2);
+    async hashRefreshToken(token, userId) {
+        const hashed = await hash(`${userId}${token}`, 2);
+        return hashed;
+    }
+    async compareRefeshToken(token, userId, hashedToken) {
+        const isValid = await compareHash(`${userId}${token}`, hashedToken);
+        return isValid;
     }
     async resetPassword(email) {
         if (!this.emailSender) {
-            throw new EmailSenderRequiredException();
+            throw new PassauthEmailSenderRequiredException();
         }
         const success = await this.emailSender.sendResetPasswordEmail(email);
+        return success;
     }
-    generateTokens(userId) {
+    async generateTokens(userId) {
         const accessToken = generateAccessToken({
             userId,
             secretKey: this.config.SECRET_KEY,
@@ -97,12 +107,8 @@ export class AuthHandler {
         const { token: refreshToken, exp } = generateRefreshToken({
             expiresIn: this.config.REFRESH_TOKEN_EXPIRATION_MS,
         });
-        this.saveRefreshToken(userId, refreshToken, exp);
+        await this.saveRefreshToken(userId, refreshToken, exp);
         return { accessToken, refreshToken };
-    }
-    async comparePasswords(password, hash) {
-        const isValid = await bcrypt.compare(password, hash);
-        return isValid;
     }
 }
 //# sourceMappingURL=auth.handler.js.map

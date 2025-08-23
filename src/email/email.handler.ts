@@ -49,14 +49,14 @@ export class EmailSender {
   private getResetPasswordTemplate(args: TemplateArgs) {
     return {
       text: `Reset your password for email ${args.email} by clicking on the following link: ${args.link}`,
-      html: `<p>Reset your password for email ${args.email} by clicking on the following link: <a href="${args.link}">${args.link}</a></p>`,
+      html: `<p>Reset your password for email ${args.email} by clicking on the following link: <a href="${args.link}">Reset password</a></p>`,
     };
   }
 
   private getConfirmEmailTemplate(args: TemplateArgs) {
     return {
       text: `Confirm your email ${args.email} by clicking on the following link: ${args.link}`,
-      html: `<p>Confirm your email ${args.email} by clicking on the following link: <a href="${args.link}">${args.link}</a></p>`,
+      html: `<p>Confirm your email ${args.email} by clicking on the following link: <a href="${args.link}">Confirm email</a></p>`,
     };
   }
 
@@ -159,9 +159,8 @@ export class EmailSender {
     const overrideParams = this.options.emailConfig?.[templateType].email;
 
     return {
-      from: overrideParams?.from || this.options.senderEmail,
-      senderEmail: this.options.senderEmail,
       senderName: overrideParams?.senderName || this.options.senderName,
+      from: overrideParams?.from || this.options.senderEmail,
       to: emailArgs.to,
       subject: overrideParams?.subject || emailArgs.subject,
       text: emailArgs.text,
@@ -190,7 +189,7 @@ export class EmailSender {
       const params = this.getEmailParams(
         {
           to: [email],
-          subject: "Reset Password",
+          subject: "Confirm your email",
           text,
           html,
         },

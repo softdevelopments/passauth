@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { ID } from "./auth.types";
 export declare const hash: (password: string, saltingRounds: number) => Promise<string>;
+export declare const compareHash: (value: string, hash: string) => Promise<boolean>;
 export declare const generateAccessToken: ({ userId, secretKey, expiresIn, }: {
     userId: ID;
     secretKey: string;

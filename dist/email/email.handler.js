@@ -93,9 +93,8 @@ export class EmailSender {
     getEmailParams(emailArgs, templateType) {
         const overrideParams = this.options.emailConfig?.[templateType].email;
         return {
-            from: overrideParams?.from || this.options.senderEmail,
-            senderEmail: this.options.senderEmail,
             senderName: overrideParams?.senderName || this.options.senderName,
+            from: overrideParams?.from || this.options.senderEmail,
             to: emailArgs.to,
             subject: overrideParams?.subject || emailArgs.subject,
             text: emailArgs.text,
@@ -116,7 +115,7 @@ export class EmailSender {
             const { text, html } = this.getConfirmEmailTemplate({ email, link });
             const params = this.getEmailParams({
                 to: [email],
-                subject: "Reset Password",
+                subject: "Confirm your email",
                 text,
                 html,
             }, TemplateTypes.CONFIRM_EMAIL);

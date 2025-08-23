@@ -1,5 +1,3 @@
-import bcrypt from "bcrypt";
-
 import {
   PassauthEmailSenderRequiredException,
   PassauthInvalidCredentialsException,
@@ -7,6 +5,7 @@ import {
   PassauthInvalidUserException,
   PassauthEmailAlreadyTakenException,
   PassauthInvalidAccessTokenException,
+  PassauthEmailNotVerifiedException,
 } from "./auth.exceptions";
 import {
   DEFAULT_JWT_EXPIRATION_MS,
@@ -75,10 +74,14 @@ export class AuthHandler<T extends User> {
     });
 
     if (this.config.REQUIRE_EMAIL_CONFIRMATION) {
-      await this.emailSender?.sendConfirmPasswordEmail(createdUser.email);
+      const { success } = await this.emailSender!.sendConfirmPasswordEmail(
+        createdUser.email
+      );
+
+      return { user: createdUser, emailSent: success };
     }
 
-    return createdUser;
+    return { user: createdUser, emailSent: false };
   }
 
   async login(params: LoginParams) {
@@ -86,6 +89,10 @@ export class AuthHandler<T extends User> {
 
     if (!user) {
       throw new PassauthInvalidUserException(params.email);
+    }
+
+    if (this.config.REQUIRE_EMAIL_CONFIRMATION && !user.emailVerified) {
+      throw new PassauthEmailNotVerifiedException(params.email);
     }
 
     const isValidPassword = await compareHash(params.password, user.password);
@@ -107,6 +114,54 @@ export class AuthHandler<T extends User> {
     }
 
     return decodedToken;
+  }
+
+  async refreshToken(accessToken: string, refreshToken: string) {
+    const { sub } = decodeAccessToken(accessToken);
+
+    await this.validateRefreshToken(sub!, refreshToken);
+
+    const tokens = await this.generateTokens(sub);
+
+    return tokens;
+  }
+
+  revokeRefreshToken(userId: ID) {
+    delete this.refreshTokensLocalChaching[userId];
+  }
+
+  async resetPassword(email: string) {
+    if (!this.emailSender) {
+      throw new PassauthEmailSenderRequiredException();
+    }
+
+    const success = await this.emailSender.sendResetPasswordEmail(email);
+
+    return success;
+  }
+
+  async confirmEmail(email: string, token: string) {
+    if (!this.emailSender) {
+      throw new PassauthEmailSenderRequiredException();
+    }
+
+    const success = await this.emailSender.confirmEmail(email, token);
+
+    return success;
+  }
+
+  async confirmResetPassword(email: string, token: string, password: string) {
+    if (!this.emailSender) {
+      throw new PassauthEmailSenderRequiredException();
+    }
+
+    const success = await this.emailSender.confirmResetPassword(
+      email,
+      token,
+      password
+    );
+
+    return success;
   }
 
   private async validateRefreshToken(userId: ID, refreshToken: string) {
@@ -131,20 +186,6 @@ export class AuthHandler<T extends User> {
     if (now >= cachedToken.exp) {
       throw new PassauthInvalidRefreshTokenException();
     }
-  }
-
-  async refreshToken(accessToken: string, refreshToken: string) {
-    const { sub } = decodeAccessToken(accessToken);
-
-    await this.validateRefreshToken(sub!, refreshToken);
-
-    const tokens = await this.generateTokens(sub);
-
-    return tokens;
-  }
-
-  revokeRefreshToken(userId: ID) {
-    delete this.refreshTokensLocalChaching[userId];
   }
 
   private async saveRefreshToken(
@@ -176,14 +217,6 @@ export class AuthHandler<T extends User> {
     const isValid = await compareHash(`${userId}${token}`, hashedToken);
 
     return isValid;
-  }
-
-  async resetPassword(email: string) {
-    if (!this.emailSender) {
-      throw new EmailSenderRequiredException();
-    }
-
-    const success = await this.emailSender.sendResetPasswordEmail(email);
   }
 
   private async generateTokens(userId: ID) {
