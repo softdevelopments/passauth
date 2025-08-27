@@ -11,13 +11,33 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./auth/*": {
-      "import": "./dist/auth/*.js",
-      "types": "./dist/auth/*.d.ts"
+    "./auth": {
+      "import": "./dist/auth/auth.handler.js",
+      "types": "./dist/auth/auth.handler.d.ts"
     },
-    "./plugin/*": {
+    "./auth/constants": {
+      "import": "./dist/auth/auth.constants.js",
+      "types": "./dist/auth/auth.constants.d.ts"
+    },
+    "./auth/exceptions": {
+      "import": "./dist/auth/auth.exceptions.js",
+      "types": "./dist/auth/auth.exceptions.d.ts"
+    },
+    "./auth/types": {
+      "import": "./dist/auth/auth.types.js",
+      "types": "./dist/auth/auth.types.d.ts"
+    },
+    "./auth/utils": {
+      "import": "./dist/auth/auth.utils.js",
+      "types": "./dist/auth/auth.utils.d.ts"
+    },
+    "./plugin": {
+      "import": "./dist/plugin/plugin.handler.js",
+      "types": "./dist/plugin/plugin.handler.d.ts"
+    },
+    "./plugin/types": {
       "import": "./dist/plugin/*.js",
-      "types": "./dist/plugin/*.d.ts"
+      "types": "./dist/plugin/plugin.types.d.ts"
     }
   },
   "files": [
