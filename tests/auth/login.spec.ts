@@ -15,8 +15,6 @@ import {
   PassauthInvalidUserException,
   PassauthInvalidRefreshTokenException,
   PassauthInvalidAccessTokenException,
-  PassauthEmailSenderRequiredException,
-  PassauthEmailNotVerifiedException,
 } from "../../src/auth/auth.exceptions";
 import { AuthRepo } from "../../src/auth/auth.types";
 import { hash } from "../../src/auth/auth.utils";
@@ -25,7 +23,6 @@ import {
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_SALTING_ROUNDS,
 } from "../../src/auth/auth.constants";
-import { EmailClient, SendEmailArgs } from "../../src/email/email.types";
 
 const userData = {
   id: 1,
@@ -221,91 +218,5 @@ describe("Passauth:Login - Configuration: minimal", () => {
         loginResponse.refreshToken
       )
     ).rejects.toThrow(PassauthInvalidRefreshTokenException);
-  });
-
-  test("ResetPassword - Should throw error if email sender is not provided", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    await expect(
-      passauth.handler.resetPassword(userData.email)
-    ).rejects.toThrow(PassauthEmailSenderRequiredException);
-  });
-});
-
-describe("Passauth:Login - Configuration: email provider and email confirmation", () => {
-  class MockEmailClient implements EmailClient {
-    async send(emailData: SendEmailArgs) {}
-  }
-
-  const emailClient = new MockEmailClient();
-
-  const passauthConfig: PassauthConfiguration<User> = {
-    secretKey: "secretKey",
-    repo: repoMock,
-    requireEmailConfirmation: true,
-    emailPlugin: {
-      senderName: "Sender Name",
-      senderEmail: "sender@example.com",
-      client: emailClient,
-      services: {
-        createResetPasswordLink: async (email: string, token: string) =>
-          `http://mysite.com/reset-password?token=${token}`,
-        createConfirmEmailLink: async (email: string, token: string) =>
-          `http://mysite.com/confirm-email?token=${token}`,
-      },
-      repo: {
-        confirmEmail: async (email: string) => true,
-        resetPassword: async (email: string, password: string) => true,
-      },
-    },
-  };
-
-  beforeAll(() => {
-    jest.useFakeTimers();
-  });
-
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    jest.clearAllTimers();
-  });
-
-  test("Login - User should not authenticate if email is not confirmed", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    await expect(
-      passauth.handler.login({
-        email: userData.email,
-        password: userData.password,
-      })
-    ).rejects.toThrow(PassauthEmailNotVerifiedException);
-  });
-
-  test("ResetPassword - Should pass correct params to email sender", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    jest
-      .spyOn(repoMock, "getUser")
-      .mockReturnValueOnce(new Promise((resolve) => resolve(null)));
-    const emailSenderSpy = jest.spyOn(emailClient, "send");
-
-    await passauth.handler.resetPassword(userData.email);
-
-    expect(emailSenderSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        senderName: passauthConfig.emailPlugin?.senderName,
-        from: passauthConfig.emailPlugin?.senderEmail,
-        to: [userData.email],
-        subject: "Reset Password",
-        text: expect.any(String),
-        html: expect.any(String),
-      })
-    );
-
-    expect(emailSenderSpy.mock.calls[0][0].text).toContain(
-      "http://mysite.com/reset-password?token="
-    );
-    expect(emailSenderSpy.mock.calls[0][0].html).toMatch(
-      /<a href="http:\/\/mysite\.com\/reset-password\?token=\w+\">Reset password\<\/a>/
-    );
   });
 });

@@ -20,7 +20,6 @@ const passauthConfig: PassauthConfiguration<User> = {
   saltingRounds: 4,
   accessTokenExpirationMs: 1000 * 60,
   refreshTokenExpirationMs: 1000 * 60 * 15,
-  requireEmailConfirmation: false,
   repo: repoMock,
 };
 
@@ -32,13 +31,6 @@ describe("Passauth - Configuration", () => {
     expect(() =>
       Passauth({ ...passauthConfig, secretKey: undefined } as any)
     ).toThrow("Passauth exception: secretKey option is required");
-
-    expect(() =>
-      Passauth({ ...passauthConfig, requireEmailConfirmation: true } as any)
-    ).toThrow(PassauthMissingConfigurationException);
-    expect(() =>
-      Passauth({ ...passauthConfig, requireEmailConfirmation: true } as any)
-    ).toThrow("Passauth exception: emailPlugin option is required");
 
     expect(() =>
       Passauth({ ...passauthConfig, repo: undefined } as any)

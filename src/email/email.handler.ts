@@ -1,14 +1,27 @@
+import {
+  PassauthInvalidCredentialsException,
+  PassauthInvalidUserException,
+} from "../auth/auth.exceptions";
+import type { AuthHandler } from "../auth/auth.handler";
+import type { LoginParams, RegisterParams, User } from "../auth/auth.types";
+import { compareHash } from "../auth/auth.utils";
+import type { PluginInit, SharedComponents } from "../auth/plugin.types";
 import { generateToken } from "./emai.utils";
 import {
   DEFAULT_CONFIRMATION_LINK_EXPIRATION_MS,
   DEFAULT_RESET_PASSWORD_LINK_EXPIRATION_MS,
 } from "./email.constants";
-import { PassauthEmailPluginMissingConfigurationException } from "./email.exceptions";
+import {
+  PassauthEmailNotVerifiedException,
+  PassauthEmailPluginMissingConfigurationException,
+} from "./email.exceptions";
 import {
   TemplateTypes,
   type TemplateArgs,
   type EmailPluginOptions,
   type SendEmailArgs,
+  type UserEmailSenderPlugin,
+  EMAIL_SENDER_PLUGIN,
 } from "./email.types";
 
 export class EmailSender {
@@ -26,11 +39,15 @@ export class EmailSender {
       exp: number;
     }
   > = new Map();
+
   private confirmationLinkExpiration = DEFAULT_CONFIRMATION_LINK_EXPIRATION_MS;
   private resetPasswordLinkExpiration =
     DEFAULT_RESET_PASSWORD_LINK_EXPIRATION_MS;
 
-  constructor(private options: EmailPluginOptions) {
+  constructor(
+    private options: EmailPluginOptions,
+    private authHandler: AuthHandler<UserEmailSenderPlugin>
+  ) {
     const confirmationExpiration =
       options.emailConfig?.[TemplateTypes.CONFIRM_EMAIL].linkExpirationMs;
 
@@ -46,52 +63,18 @@ export class EmailSender {
     }
   }
 
-  private getResetPasswordTemplate(args: TemplateArgs) {
-    return {
-      text: `Reset your password for email ${args.email} by clicking on the following link: ${args.link}`,
-      html: `<p>Reset your password for email ${args.email} by clicking on the following link: <a href="${args.link}">Reset password</a></p>`,
-    };
+  async register(params: RegisterParams) {
+    const createdUser = await this.authHandler.register(params);
+
+    const { success } = await this.sendConfirmPasswordEmail(createdUser.email);
+
+    return { user: createdUser, emailSent: success };
   }
 
-  private getConfirmEmailTemplate(args: TemplateArgs) {
-    return {
-      text: `Confirm your email ${args.email} by clicking on the following link: ${args.link}`,
-      html: `<p>Confirm your email ${args.email} by clicking on the following link: <a href="${args.link}">Confirm email</a></p>`,
-    };
-  }
+  async resetPassword(email: string) {
+    const success = await this.sendResetPasswordEmail(email);
 
-  private generateResetPasswordToken(email: string) {
-    const token = generateToken();
-    const exp = Date.now() + this.resetPasswordLinkExpiration;
-
-    this.resetPasswordTokens.set(email, { token, exp });
-
-    return token;
-  }
-
-  private verifyToken(email: string, token: string, type: TemplateTypes) {
-    const collection =
-      type === TemplateTypes.RESET_PASSWORD
-        ? this.resetPasswordTokens
-        : this.confirmEmailTokens;
-
-    const record = collection.get(email);
-
-    if (!record) {
-      return false;
-    }
-
-    if (record.token !== token) {
-      return false;
-    }
-
-    if (Date.now() > record.exp) {
-      this.resetPasswordTokens.delete(email);
-
-      return false;
-    }
-
-    return true;
+    return success;
   }
 
   async sendResetPasswordEmail(email: string) {
@@ -152,6 +135,76 @@ export class EmailSender {
     return false;
   }
 
+  async login(params: LoginParams) {
+    const user = await this.authHandler.repo.getUser(params.email);
+
+    if (!user) {
+      throw new PassauthInvalidUserException(params.email);
+    }
+
+    if (!user.emailVerified) {
+      throw new PassauthEmailNotVerifiedException(params.email);
+    }
+
+    const isValidPassword = await compareHash(params.password, user.password);
+
+    if (!isValidPassword) {
+      throw new PassauthInvalidCredentialsException();
+    }
+
+    const tokens = this.authHandler.generateTokens(user.id);
+
+    return tokens;
+  }
+
+  private getResetPasswordTemplate(args: TemplateArgs) {
+    return {
+      text: `Reset your password for email ${args.email} by clicking on the following link: ${args.link}`,
+      html: `<p>Reset your password for email ${args.email} by clicking on the following link: <a href="${args.link}">Reset password</a></p>`,
+    };
+  }
+
+  private getConfirmEmailTemplate(args: TemplateArgs) {
+    return {
+      text: `Confirm your email ${args.email} by clicking on the following link: ${args.link}`,
+      html: `<p>Confirm your email ${args.email} by clicking on the following link: <a href="${args.link}">Confirm email</a></p>`,
+    };
+  }
+
+  private generateResetPasswordToken(email: string) {
+    const token = generateToken();
+    const exp = Date.now() + this.resetPasswordLinkExpiration;
+
+    this.resetPasswordTokens.set(email, { token, exp });
+
+    return token;
+  }
+
+  private verifyToken(email: string, token: string, type: TemplateTypes) {
+    const collection =
+      type === TemplateTypes.RESET_PASSWORD
+        ? this.resetPasswordTokens
+        : this.confirmEmailTokens;
+
+    const record = collection.get(email);
+
+    if (!record) {
+      return false;
+    }
+
+    if (record.token !== token) {
+      return false;
+    }
+
+    if (Date.now() > record.exp) {
+      this.resetPasswordTokens.delete(email);
+
+      return false;
+    }
+
+    return true;
+  }
+
   private getEmailParams(
     emailArgs: Pick<SendEmailArgs, "to" | "subject" | "text" | "html">,
     templateType: TemplateTypes
@@ -205,24 +258,35 @@ export class EmailSender {
   }
 }
 
-export const EmailPlugin = (options: EmailPluginOptions) => {
+export const EmailPlugin = (
+  options: EmailPluginOptions,
+  authHandler: AuthHandler<UserEmailSenderPlugin>
+) => {
   if (!options.senderName) {
     throw new PassauthEmailPluginMissingConfigurationException("senderName");
   }
-
   if (!options.senderEmail) {
     throw new PassauthEmailPluginMissingConfigurationException("senderEmail");
   }
-
   if (!options.client) {
     throw new PassauthEmailPluginMissingConfigurationException("client");
   }
-
   if (!options.services) {
     throw new PassauthEmailPluginMissingConfigurationException("services");
   }
 
-  const emailSender = new EmailSender(options);
+  const emailSender = new EmailSender(options, authHandler);
 
   return emailSender;
+};
+
+export const EmailSenderPlugin: PluginInit<
+  UserEmailSenderPlugin,
+  EmailPluginOptions
+> = (options: EmailPluginOptions) => {
+  return {
+    name: EMAIL_SENDER_PLUGIN,
+    handlerInit: (components: SharedComponents<UserEmailSenderPlugin>) =>
+      new EmailSender(options, components.passauthHandler),
+  };
 };

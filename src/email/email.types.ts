@@ -1,3 +1,5 @@
+import type { User } from "../auth/auth.types";
+
 export enum TemplateTypes {
   RESET_PASSWORD = "reset-password",
   CONFIRM_EMAIL = "confirm-email",
@@ -57,3 +59,7 @@ export type EmailPluginOptions = {
     resetPassword(email: string, password: string): Promise<boolean>;
   };
 };
+
+export type UserEmailSenderPlugin = User & { emailVerified: boolean };
+
+export const EMAIL_SENDER_PLUGIN = "email-sender";

@@ -11,3 +11,9 @@ export class PassauthEmailPluginMissingConfigurationException extends PassauthEm
     super("config", "MissingConfiguration", `${key} option is required`);
   }
 }
+
+export class PassauthEmailNotVerifiedException extends PassauthEmailPluginException {
+  constructor(email: string) {
+    super("login", "EmailNotVerified", `Email not verified: ${email}`);
+  }
+}

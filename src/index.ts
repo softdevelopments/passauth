@@ -1,7 +1,7 @@
 import { AuthHandler } from "./auth/auth.handler";
 import { PassauthMissingConfigurationException } from "./auth/auth.exceptions";
 import type { PassauthConfiguration, User } from "./auth/auth.types";
-import { EmailPlugin } from "./email/email.handler";
+import { pluginInit } from "./auth/plugin.handler";
 
 export const Passauth = <T extends User>(options: PassauthConfiguration<T>) => {
   if (!options.secretKey) {
@@ -12,12 +12,9 @@ export const Passauth = <T extends User>(options: PassauthConfiguration<T>) => {
     throw new PassauthMissingConfigurationException("repo");
   }
 
-  if (options.requireEmailConfirmation && !options.emailPlugin) {
-    throw new PassauthMissingConfigurationException("emailPlugin");
-  }
+  const handler = new AuthHandler<T>(options, options.repo);
 
-  const emailPlugin = options.emailPlugin && EmailPlugin(options.emailPlugin);
-  const handler = new AuthHandler<T>(options, options.repo, emailPlugin);
+  const plugins = pluginInit(options?.plugins || [], handler);
 
-  return { handler };
+  return { handler, plugins };
 };

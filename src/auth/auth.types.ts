@@ -1,4 +1,5 @@
-import type { EmailPluginOptions } from "../email/email.types";
+import type { JwtPayload } from "jsonwebtoken";
+import type { PluginInit } from "./plugin.types";
 
 export type ID = string | number;
 
@@ -29,10 +30,9 @@ export type HandlerOptions = {
   saltingRounds?: number;
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
-  requireEmailConfirmation?: boolean;
 };
 
-export type PassauthConfiguration<T extends User> = HandlerOptions & {
-  repo: AuthRepo<T>;
-  emailPlugin?: EmailPluginOptions;
+export type PassauthConfiguration<U extends User> = HandlerOptions & {
+  repo: AuthRepo<U>;
+  plugins?: Array<ReturnType<PluginInit<U, any>>>;
 };
