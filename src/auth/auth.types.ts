@@ -1,5 +1,5 @@
 import type { JwtPayload } from "jsonwebtoken";
-import type { PluginInit } from "./plugin.types";
+import type { PluginInit } from "../plugin/plugin.types";
 
 export type ID = string | number;
 

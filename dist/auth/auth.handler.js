@@ -1,17 +1,14 @@
-import bcrypt from "bcrypt";
-import { PassauthEmailSenderRequiredException, PassauthInvalidCredentialsException, PassauthInvalidRefreshTokenException, PassauthInvalidUserException, PassauthEmailAlreadyTakenException, PassauthInvalidAccessTokenException, PassauthEmailNotVerifiedException, } from "./auth.exceptions";
+import { PassauthInvalidCredentialsException, PassauthInvalidRefreshTokenException, PassauthInvalidUserException, PassauthEmailAlreadyTakenException, PassauthInvalidAccessTokenException, } from "./auth.exceptions";
 import { DEFAULT_JWT_EXPIRATION_MS, DEFAULT_REFRESH_EXPIRATION_TOKEN_MS, DEFAULT_SALTING_ROUNDS, } from "./auth.constants";
 import { decodeAccessToken, verifyAccessToken, generateAccessToken, generateRefreshToken, hash, compareHash, } from "./auth.utils";
 export class AuthHandler {
-    constructor(options, repo, emailSender) {
+    constructor(options, repo) {
         this.repo = repo;
-        this.emailSender = emailSender;
         this.refreshTokensLocalChaching = {};
         this.config = {
             SALTING_ROUNDS: options.saltingRounds || DEFAULT_SALTING_ROUNDS,
             ACCESS_TOKEN_EXPIRATION_MS: options.accessTokenExpirationMs || DEFAULT_JWT_EXPIRATION_MS,
             REFRESH_TOKEN_EXPIRATION_MS: options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
-            REQUIRE_EMAIL_CONFIRMATION: options.requireEmailConfirmation || false,
             SECRET_KEY: options.secretKey,
         };
     }
@@ -24,19 +21,12 @@ export class AuthHandler {
             ...params,
             password: await hash(params.password, this.config.SALTING_ROUNDS),
         });
-        if (this.config.REQUIRE_EMAIL_CONFIRMATION) {
-            const { success } = await this.emailSender.sendConfirmPasswordEmail(createdUser.email);
-            return { user: createdUser, emailSent: success };
-        }
-        return { user: createdUser, emailSent: false };
+        return createdUser;
     }
     async login(params) {
         const user = await this.repo.getUser(params.email);
         if (!user) {
             throw new PassauthInvalidUserException(params.email);
-        }
-        if (this.config.REQUIRE_EMAIL_CONFIRMATION && !user.emailVerified) {
-            throw new PassauthEmailNotVerifiedException(params.email);
         }
         const isValidPassword = await compareHash(params.password, user.password);
         if (!isValidPassword) {
@@ -90,13 +80,6 @@ export class AuthHandler {
     async compareRefeshToken(token, userId, hashedToken) {
         const isValid = await compareHash(`${userId}${token}`, hashedToken);
         return isValid;
-    }
-    async resetPassword(email) {
-        if (!this.emailSender) {
-            throw new PassauthEmailSenderRequiredException();
-        }
-        const success = await this.emailSender.sendResetPasswordEmail(email);
-        return success;
     }
     async generateTokens(userId) {
         const accessToken = generateAccessToken({

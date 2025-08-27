@@ -1,6 +1,5 @@
-import type { UserEmailSenderPlugin } from "../email/email.types";
-import type { AuthHandler } from "./auth.handler";
-import type { User } from "./auth.types";
+import type { AuthHandler } from "../auth/auth.handler";
+import type { User } from "../auth/auth.types";
 import type { PluginInit, Plugins } from "./plugin.types";
 
 export const pluginInit = <U extends User>(

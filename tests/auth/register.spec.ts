@@ -4,7 +4,6 @@ import { Passauth } from "../../src";
 import { User } from "../../src/auth/auth.types";
 import { PassauthEmailAlreadyTakenException } from "../../src/auth/auth.exceptions";
 import { AuthRepo } from "../../src/auth/auth.types";
-import { EmailClient, SendEmailArgs } from "../../src/email/email.types";
 
 const repoMock: AuthRepo<User> = {
   getUser: async (email) => null,

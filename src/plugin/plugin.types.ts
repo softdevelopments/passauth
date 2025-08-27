@@ -1,5 +1,5 @@
-import type { AuthHandler } from "./auth.handler";
-import type { User } from "./auth.types";
+import type { AuthHandler } from "../auth/auth.handler";
+import type { User } from "../auth/auth.types";
 
 export type Plugins = {
   [key: string]: {

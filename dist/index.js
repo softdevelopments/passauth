@@ -1,6 +1,6 @@
 import { AuthHandler } from "./auth/auth.handler";
 import { PassauthMissingConfigurationException } from "./auth/auth.exceptions";
-import { EmailPlugin } from "./email/email.handler";
+import { pluginInit } from "./plugin/plugin.handler";
 export const Passauth = (options) => {
     if (!options.secretKey) {
         throw new PassauthMissingConfigurationException("secretKey");
@@ -8,11 +8,8 @@ export const Passauth = (options) => {
     if (!options.repo) {
         throw new PassauthMissingConfigurationException("repo");
     }
-    if (options.requireEmailConfirmation && !options.emailPlugin) {
-        throw new PassauthMissingConfigurationException("emailPlugin");
-    }
-    const emailPlugin = options.emailPlugin && EmailPlugin(options.emailPlugin);
-    const handler = new AuthHandler(options, options.repo, emailPlugin);
-    return { handler };
+    const handler = new AuthHandler(options, options.repo);
+    const plugins = pluginInit(options?.plugins || [], handler);
+    return { handler, plugins };
 };
 //# sourceMappingURL=index.js.map

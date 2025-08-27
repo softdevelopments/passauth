@@ -21,11 +21,6 @@ export class PassauthInvalidUserException extends PassauthException {
         super("login", "InvalidUser", `Invalid email: ${email}`);
     }
 }
-export class PassauthEmailNotVerifiedException extends PassauthException {
-    constructor(email) {
-        super("login", "EmailNotVerified", `Email not verified: ${email}`);
-    }
-}
 export class PassauthInvalidCredentialsException extends PassauthException {
     constructor() {
         super("login", "InvalidCredentials", "Invalid email or password");
@@ -39,11 +34,6 @@ export class PassauthInvalidAccessTokenException extends PassauthException {
 export class PassauthInvalidRefreshTokenException extends PassauthException {
     constructor() {
         super("login", "InvalidRefreshToken", "Invalid refresh token");
-    }
-}
-export class PassauthEmailSenderRequiredException extends PassauthException {
-    constructor() {
-        super("config", "EmailSenderPluginRequired", "Email sender plugin is required");
     }
 }
 //# sourceMappingURL=auth.exceptions.js.map
