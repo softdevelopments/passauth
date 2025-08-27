@@ -13,6 +13,10 @@
     },
     "./auth": {
       "import": "./dist/auth/auth.handler.js",
+      "types": "./dist/auth/auth.handler.d.ts"
+    },
+    "./auth/interfaces": {
+      "import": "./dist/auth/auth.types.js",
       "types": "./dist/auth/auth.types.d.ts"
     },
     "./auth/constants": {
@@ -29,6 +33,10 @@
     },
     "./plugin": {
       "import": "./dist/plugin/plugin.handler.js",
+      "types": "./dist/plugin/plugin.handler.d.ts"
+    },
+    "./plugin/interfaces": {
+      "import": "./dist/plugin/plugin.types.js",
       "types": "./dist/plugin/plugin.types.d.ts"
     }
   },
