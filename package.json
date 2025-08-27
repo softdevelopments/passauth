@@ -47,7 +47,8 @@
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "build": "tsc",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "prepare": "tsc"
   },
   "keywords": [],
   "author": "",
