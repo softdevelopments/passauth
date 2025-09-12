@@ -1,6 +1,6 @@
 {
   "name": "passauth",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "type": "module",
   "types": "dist/index.d.ts",
@@ -46,7 +46,7 @@
     "build": "tsc",
     "postbuild": "tsc-esm-fix",
     "dev": "tsx watch src/index.ts",
-    "prepare": "build"
+    "prepare": "tsc && tsc-esm-fix"
   },
   "keywords": [],
   "author": "",
