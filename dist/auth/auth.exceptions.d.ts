@@ -22,4 +22,3 @@ export declare class PassauthInvalidAccessTokenException extends PassauthExcepti
 export declare class PassauthInvalidRefreshTokenException extends PassauthException {
     constructor();
 }
-//# sourceMappingURL=auth.exceptions.d.ts.map

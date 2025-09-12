@@ -20,4 +20,3 @@ export type PluginInit<U extends User, O extends {
     name: string;
     handlerInit: (components: SharedComponents<U>) => any;
 };
-//# sourceMappingURL=plugin.types.d.ts.map

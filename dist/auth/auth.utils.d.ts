@@ -17,4 +17,3 @@ export declare const verifyAccessToken: (token: string, secretKey: string) => jw
 export declare const decodeAccessToken: (token: string) => jwt.JwtPayload & {
     sub: ID;
 };
-//# sourceMappingURL=auth.utils.d.ts.map

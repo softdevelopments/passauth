@@ -24,4 +24,3 @@ export declare class AuthHandler<T extends User> {
         refreshToken: string;
     }>;
 }
-//# sourceMappingURL=auth.handler.d.ts.map

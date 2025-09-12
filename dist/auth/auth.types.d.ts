@@ -28,4 +28,3 @@ export type PassauthConfiguration<U extends User> = HandlerOptions & {
     repo: AuthRepo<U>;
     plugins?: Array<ReturnType<PluginInit<U, any>>>;
 };
-//# sourceMappingURL=auth.types.d.ts.map
