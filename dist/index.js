@@ -1,6 +1,8 @@
 import { AuthHandler } from "./auth/auth.handler";
 import { PassauthMissingConfigurationException } from "./auth/auth.exceptions";
 import { pluginInit } from "./plugin/plugin.handler";
+export * from './auth';
+export * from './plugin';
 export const Passauth = (options) => {
     if (!options.secretKey) {
         throw new PassauthMissingConfigurationException("secretKey");
