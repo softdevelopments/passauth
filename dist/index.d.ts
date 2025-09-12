@@ -1,8 +1,8 @@
-import { AuthHandler } from "./auth/auth.handler.js";
-import type { PassauthConfiguration, User } from "./auth/auth.types.js";
-export * from './auth/index.js';
-export * from './plugin/index.js';
+import { AuthHandler } from "./auth/auth.handler";
+import type { PassauthConfiguration, User } from "./auth/auth.types";
+export * from './auth/index';
+export * from './plugin/index';
 export declare const Passauth: <T extends User>(options: PassauthConfiguration<T>) => {
     handler: AuthHandler<T>;
-    plugins: import("./index.js").Plugins;
+    plugins: import(".").Plugins;
 };

@@ -1,4 +1,4 @@
-import type { AuthRepo, HandlerOptions, ID, LoginParams, RegisterParams, User } from "./auth.types.js";
+import type { AuthRepo, HandlerOptions, ID, LoginParams, RegisterParams, User } from "./auth.types";
 export declare class AuthHandler<T extends User> {
     repo: AuthRepo<T>;
     private refreshTokensLocalChaching;

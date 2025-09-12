@@ -1,4 +1,4 @@
-import type { PluginInit } from "../plugin/plugin.types.js";
+import type { PluginInit } from "../plugin/plugin.types";
 export type ID = string | number;
 export type User = {
     id: ID;

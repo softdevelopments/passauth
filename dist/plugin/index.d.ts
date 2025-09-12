@@ -1,2 +1,2 @@
-export * from './plugin.handler.js';
-export * from './plugin.types.js';
+export * from './plugin.handler';
+export * from './plugin.types';
