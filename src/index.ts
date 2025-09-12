@@ -3,8 +3,8 @@ import { PassauthMissingConfigurationException } from "./auth/auth.exceptions";
 import type { PassauthConfiguration, User } from "./auth/auth.types";
 import { pluginInit } from "./plugin/plugin.handler";
 
-export * from './auth';
-export * from './plugin';
+export * from './auth/index'
+export * from './plugin/index';
 
 
 export const Passauth = <T extends User>(options: PassauthConfiguration<T>) => {

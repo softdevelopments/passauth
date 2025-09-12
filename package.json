@@ -1,9 +1,8 @@
 {
   "name": "passauth",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "description": "",
   "type": "module",
-  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
@@ -45,6 +44,7 @@
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "build": "tsc",
+    "postbuild": "tsc-esm-fix",
     "dev": "tsx watch src/index.ts",
     "prepare": "tsc"
   },
@@ -58,6 +58,7 @@
     "@types/node": "^24.3.0",
     "jest": "^30.0.5",
     "ts-jest": "^29.4.1",
+    "tsc-esm-fix": "^3.1.2",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2"
   },

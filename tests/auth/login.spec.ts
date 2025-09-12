@@ -9,20 +9,20 @@ import {
   beforeAll,
 } from "@jest/globals";
 import { Passauth } from "../../src";
-import { PassauthConfiguration, User } from "../../src/auth/auth.types";
+import { PassauthConfiguration, User } from "../../src/auth/auth.types.js";
 import {
   PassauthInvalidCredentialsException,
   PassauthInvalidUserException,
   PassauthInvalidRefreshTokenException,
   PassauthInvalidAccessTokenException,
 } from "../../src/auth/auth.exceptions";
-import { AuthRepo } from "../../src/auth/auth.types";
-import { hash } from "../../src/auth/auth.utils";
+import { AuthRepo } from "../../src/auth/auth.types.js";
+import { hash } from "../../src/auth/auth.utils.js";
 import {
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_SALTING_ROUNDS,
-} from "../../src/auth/auth.constants";
+} from "../../src/auth/auth.constants.js";
 
 const userData = {
   id: 1,

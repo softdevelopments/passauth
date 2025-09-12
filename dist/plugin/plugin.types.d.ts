@@ -1,5 +1,5 @@
-import type { AuthHandler } from "../auth/auth.handler";
-import type { User } from "../auth/auth.types";
+import type { AuthHandler } from "../auth/auth.handler.js";
+import type { User } from "../auth/auth.types.js";
 export type Plugins = {
     [key: string]: {
         handler: any;

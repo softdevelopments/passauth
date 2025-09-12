@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { PassauthInvalidAccessTokenException } from "./auth.exceptions";
+import { PassauthInvalidAccessTokenException } from "./auth.exceptions.js";
 export const hash = async (password, saltingRounds) => {
     const salt = await bcrypt.genSalt(saltingRounds);
     const hashed = await bcrypt.hash(password, salt);

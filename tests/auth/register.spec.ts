@@ -1,9 +1,9 @@
 import bcrypt from "bcrypt";
 import { describe, it, expect, jest, beforeEach, test } from "@jest/globals";
-import { Passauth } from "../../src";
-import { User } from "../../src/auth/auth.types";
-import { PassauthEmailAlreadyTakenException } from "../../src/auth/auth.exceptions";
-import { AuthRepo } from "../../src/auth/auth.types";
+import { Passauth } from "../../src/index.js";
+import { User } from "../../src/auth/auth.types.js";
+import { PassauthEmailAlreadyTakenException } from "../../src/auth/auth.exceptions.js";
+import { AuthRepo } from "../../src/auth/auth.types.js";
 
 const repoMock: AuthRepo<User> = {
   getUser: async (email) => null,
