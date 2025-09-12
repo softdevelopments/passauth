@@ -46,7 +46,7 @@
     "build": "tsc",
     "postbuild": "tsc-esm-fix",
     "dev": "tsx watch src/index.ts",
-    "prepare": "tsc"
+    "prepare": "build"
   },
   "keywords": [],
   "author": "",
