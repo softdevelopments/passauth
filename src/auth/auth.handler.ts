@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import { JwtPayload } from "jsonwebtoken";
 import {
   PassauthInvalidCredentialsException,
   PassauthInvalidRefreshTokenException,
@@ -88,9 +88,7 @@ export class AuthHandler<T extends User> {
     return tokens;
   }
 
-  verifyAccessToken<D>(
-    accessToken: string
-  ): jwt.JwtPayload & { data: D | undefined } {
+  verifyAccessToken<D>(accessToken: string) {
     const decodedToken = verifyAccessToken<D>(
       accessToken,
       this.config.SECRET_KEY
