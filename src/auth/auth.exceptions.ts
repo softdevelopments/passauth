@@ -1,7 +1,7 @@
 export class PassauthException extends Error {
   public origin = "passauth";
 
-  constructor(public context: string, public name: string, message: string) {
+  constructor(public context: string, public name: string, public message: string) {
     super(`Passauth exception: ${message}`);
   }
 }
