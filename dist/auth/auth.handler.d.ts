@@ -5,12 +5,12 @@ export declare class AuthHandler<T extends User> {
     private config;
     constructor(options: HandlerOptions, repo: AuthRepo<T>);
     register(params: RegisterParams): Promise<T>;
-    login(params: LoginParams, jwtData?: any): Promise<{
+    login(params: LoginParams, jwtUserField?: keyof T): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;
     verifyAccessToken<D>(accessToken: string): import("./auth.utils.js").AuthJwtPayload<D>;
-    refreshToken(accessToken: string, refreshToken: string, jwtData?: any): Promise<{
+    refreshToken(accessToken: string, refreshToken: string): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;

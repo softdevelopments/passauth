@@ -1,7 +1,7 @@
 import { JwtPayload } from "jsonwebtoken";
 import type { ID } from "./auth.types.js";
 export type AuthJwtPayload<Data> = JwtPayload & {
-    sub: string;
+    sub: ID;
     data: Data | undefined;
 };
 export declare const hash: (password: string, saltingRounds: number) => Promise<string>;
@@ -19,6 +19,4 @@ export declare const generateRefreshToken: ({ expiresIn }: {
     exp: number;
 };
 export declare const verifyAccessToken: <D>(token: string, secretKey: string) => AuthJwtPayload<D>;
-export declare const decodeAccessToken: (token: string) => JwtPayload & {
-    sub: ID;
-};
+export declare const decodeAccessToken: <D>(token: string) => AuthJwtPayload<D>;

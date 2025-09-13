@@ -25,7 +25,7 @@ export class AuthHandler {
         });
         return createdUser;
     }
-    async login(params, jwtData) {
+    async login(params, jwtUserField) {
         const user = await this.repo.getUser({ email: params.email });
         if (!user) {
             throw new PassauthInvalidUserException(params.email);
@@ -34,6 +34,9 @@ export class AuthHandler {
         if (!isValidPassword) {
             throw new PassauthInvalidCredentialsException();
         }
+        const jwtData = jwtUserField
+            ? { [jwtUserField]: user[jwtUserField] }
+            : undefined;
         const tokens = this.generateTokens(user.id, jwtData);
         return tokens;
     }
@@ -44,10 +47,10 @@ export class AuthHandler {
         }
         return decodedToken;
     }
-    async refreshToken(accessToken, refreshToken, jwtData) {
-        const { sub } = decodeAccessToken(accessToken);
+    async refreshToken(accessToken, refreshToken) {
+        const { sub, data } = decodeAccessToken(accessToken);
         await this.validateRefreshToken(sub, refreshToken);
-        const tokens = await this.generateTokens(sub, jwtData);
+        const tokens = await this.generateTokens(sub, data);
         return tokens;
     }
     revokeRefreshToken(userId) {
