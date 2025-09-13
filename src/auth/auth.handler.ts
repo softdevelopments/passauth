@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import {
   PassauthInvalidCredentialsException,
   PassauthInvalidRefreshTokenException,
@@ -53,7 +54,9 @@ export class AuthHandler<T extends User> {
   }
 
   async register(params: RegisterParams) {
-    const existingUser = await this.repo.getUser(params.email);
+    const existingUser = await this.repo.getUser({
+      email: params.email,
+    } as Partial<T>);
 
     if (existingUser) {
       throw new PassauthEmailAlreadyTakenException();
@@ -68,7 +71,7 @@ export class AuthHandler<T extends User> {
   }
 
   async login(params: LoginParams) {
-    const user = await this.repo.getUser(params.email);
+    const user = await this.repo.getUser({ email: params.email } as Partial<T>);
 
     if (!user) {
       throw new PassauthInvalidUserException(params.email);
@@ -85,8 +88,13 @@ export class AuthHandler<T extends User> {
     return tokens;
   }
 
-  verifyAccessToken(accessToken: string) {
-    const decodedToken = verifyAccessToken(accessToken, this.config.SECRET_KEY);
+  verifyAccessToken<D>(
+    accessToken: string
+  ): jwt.JwtPayload & { data: D | undefined } {
+    const decodedToken = verifyAccessToken<D>(
+      accessToken,
+      this.config.SECRET_KEY
+    );
 
     if (!decodedToken) {
       throw new PassauthInvalidAccessTokenException();
@@ -164,11 +172,12 @@ export class AuthHandler<T extends User> {
     return isValid;
   }
 
-  async generateTokens(userId: ID) {
+  async generateTokens<D>(userId: ID, data?: D) {
     const accessToken = generateAccessToken({
       userId,
       secretKey: this.config.SECRET_KEY,
       expiresIn: this.config.ACCESS_TOKEN_EXPIRATION_MS,
+      data,
     });
     const { token: refreshToken, exp } = generateRefreshToken({
       expiresIn: this.config.REFRESH_TOKEN_EXPIRATION_MS,

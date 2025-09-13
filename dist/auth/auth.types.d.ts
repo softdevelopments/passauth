@@ -15,7 +15,7 @@ export type LoginParams = {
     password: string;
 };
 export interface AuthRepo<T extends User> {
-    getUser(email: string): Promise<T | null>;
+    getUser(param: Partial<T>): Promise<T | null>;
     createUser(params: RegisterParams): Promise<T>;
 }
 export type HandlerOptions = {

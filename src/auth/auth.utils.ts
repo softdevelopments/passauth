@@ -23,13 +23,15 @@ export const generateAccessToken = ({
   userId,
   secretKey,
   expiresIn,
+  data,
 }: {
   userId: ID;
   secretKey: string;
   expiresIn: number;
+  data?: any;
 }) => {
   return jwt.sign(
-    { sub: userId, jti: crypto.randomBytes(16).toString("hex") },
+    { sub: userId, jti: crypto.randomBytes(16).toString("hex"), data },
     secretKey,
     {
       expiresIn: `${expiresIn}`,
@@ -44,9 +46,11 @@ export const generateRefreshToken = ({ expiresIn }: { expiresIn: number }) => {
   };
 };
 
-export const verifyAccessToken = (token: string, secretKey: string) => {
+export const verifyAccessToken = <D>(token: string, secretKey: string) => {
   try {
-    const decoded = jwt.verify(token, secretKey) as jwt.JwtPayload;
+    const decoded = jwt.verify(token, secretKey) as jwt.JwtPayload & {
+      data: D | undefined;
+    };
 
     return decoded;
   } catch (error) {

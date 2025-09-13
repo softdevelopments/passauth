@@ -11,8 +11,8 @@ export const compareHash = async (value, hash) => {
     const isValid = await bcrypt.compare(value, hash);
     return isValid;
 };
-export const generateAccessToken = ({ userId, secretKey, expiresIn, }) => {
-    return jwt.sign({ sub: userId, jti: crypto.randomBytes(16).toString("hex") }, secretKey, {
+export const generateAccessToken = ({ userId, secretKey, expiresIn, data, }) => {
+    return jwt.sign({ sub: userId, jti: crypto.randomBytes(16).toString("hex"), data }, secretKey, {
         expiresIn: `${expiresIn}`,
     });
 };

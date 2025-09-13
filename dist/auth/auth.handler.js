@@ -13,7 +13,9 @@ export class AuthHandler {
         };
     }
     async register(params) {
-        const existingUser = await this.repo.getUser(params.email);
+        const existingUser = await this.repo.getUser({
+            email: params.email,
+        });
         if (existingUser) {
             throw new PassauthEmailAlreadyTakenException();
         }
@@ -24,7 +26,7 @@ export class AuthHandler {
         return createdUser;
     }
     async login(params) {
-        const user = await this.repo.getUser(params.email);
+        const user = await this.repo.getUser({ email: params.email });
         if (!user) {
             throw new PassauthInvalidUserException(params.email);
         }
@@ -81,11 +83,12 @@ export class AuthHandler {
         const isValid = await compareHash(`${userId}${token}`, hashedToken);
         return isValid;
     }
-    async generateTokens(userId) {
+    async generateTokens(userId, data) {
         const accessToken = generateAccessToken({
             userId,
             secretKey: this.config.SECRET_KEY,
             expiresIn: this.config.ACCESS_TOKEN_EXPIRATION_MS,
+            data,
         });
         const { token: refreshToken, exp } = generateRefreshToken({
             expiresIn: this.config.REFRESH_TOKEN_EXPIRATION_MS,
