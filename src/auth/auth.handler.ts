@@ -70,7 +70,7 @@ export class AuthHandler<T extends User> {
     return createdUser;
   }
 
-  async login(params: LoginParams, jwtData?: any) {
+  async login(params: LoginParams, jwtUserField?: keyof T) {
     const user = await this.repo.getUser({ email: params.email } as Partial<T>);
 
     if (!user) {
@@ -82,6 +82,10 @@ export class AuthHandler<T extends User> {
     if (!isValidPassword) {
       throw new PassauthInvalidCredentialsException();
     }
+
+    const jwtData = jwtUserField
+      ? { [jwtUserField]: user[jwtUserField] }
+      : undefined;
 
     const tokens = this.generateTokens(user.id, jwtData);
 
@@ -101,12 +105,12 @@ export class AuthHandler<T extends User> {
     return decodedToken;
   }
 
-  async refreshToken(accessToken: string, refreshToken: string, jwtData?: any) {
-    const { sub } = decodeAccessToken(accessToken);
+  async refreshToken(accessToken: string, refreshToken: string) {
+    const { sub, data } = decodeAccessToken(accessToken);
 
     await this.validateRefreshToken(sub!, refreshToken);
 
-    const tokens = await this.generateTokens(sub, jwtData);
+    const tokens = await this.generateTokens(sub, data);
 
     return tokens;
   }

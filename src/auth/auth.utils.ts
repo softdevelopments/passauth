@@ -7,7 +7,7 @@ import type { ID } from "./auth.types";
 import { PassauthInvalidAccessTokenException } from "./auth.exceptions";
 
 export type AuthJwtPayload<Data> = JwtPayload & {
-  sub: string;
+  sub: ID;
   data: Data | undefined;
 };
 
@@ -62,6 +62,6 @@ export const verifyAccessToken = <D>(token: string, secretKey: string) => {
   }
 };
 
-export const decodeAccessToken = (token: string) => {
-  return jwt.decode(token) as JwtPayload & { sub: ID };
+export const decodeAccessToken = <D>(token: string) => {
+  return jwt.decode(token) as AuthJwtPayload<D>;
 };
