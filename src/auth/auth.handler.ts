@@ -70,7 +70,7 @@ export class AuthHandler<T extends User> {
     return createdUser;
   }
 
-  async login(params: LoginParams) {
+  async login(params: LoginParams, jwtData?: any) {
     const user = await this.repo.getUser({ email: params.email } as Partial<T>);
 
     if (!user) {
@@ -83,7 +83,7 @@ export class AuthHandler<T extends User> {
       throw new PassauthInvalidCredentialsException();
     }
 
-    const tokens = this.generateTokens(user.id);
+    const tokens = this.generateTokens(user.id, jwtData);
 
     return tokens;
   }
@@ -101,12 +101,12 @@ export class AuthHandler<T extends User> {
     return decodedToken;
   }
 
-  async refreshToken(accessToken: string, refreshToken: string) {
+  async refreshToken(accessToken: string, refreshToken: string, jwtData?: any) {
     const { sub } = decodeAccessToken(accessToken);
 
     await this.validateRefreshToken(sub!, refreshToken);
 
-    const tokens = await this.generateTokens(sub);
+    const tokens = await this.generateTokens(sub, jwtData);
 
     return tokens;
   }

@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import type { AuthRepo, HandlerOptions, ID, LoginParams, RegisterParams, User } from "./auth.types.js";
 export declare class AuthHandler<T extends User> {
     repo: AuthRepo<T>;
@@ -10,9 +9,7 @@ export declare class AuthHandler<T extends User> {
         accessToken: string;
         refreshToken: string;
     }>;
-    verifyAccessToken<D>(accessToken: string): jwt.JwtPayload & {
-        data: D | undefined;
-    };
+    verifyAccessToken<D>(accessToken: string): import("./auth.utils.js").AuthJwtPayload<D>;
     refreshToken(accessToken: string, refreshToken: string): Promise<{
         accessToken: string;
         refreshToken: string;
