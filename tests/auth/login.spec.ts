@@ -113,6 +113,28 @@ describe("Passauth:Login - Configuration: minimal", () => {
     expect(decodedToken?.sub).toBe(userData.id);
   });
 
+  test("Login - Access token should inject user data when jwtUserFields is provided", async () => {
+    const passauth = Passauth(passauthConfig);
+
+    const loginResponse = await passauth.handler.login(
+      {
+        email: userData.email,
+        password: userData.password,
+      },
+      ["email"]
+    );
+
+    const decodedToken = jwt.decode(loginResponse.accessToken);
+
+    expect(decodedToken).toEqual(
+      expect.objectContaining({
+        data: {
+          email: userData.email,
+        },
+      })
+    );
+  });
+
   test("VerifyAccessToken - Should throw error if access token is expired", async () => {
     const passauth = Passauth(passauthConfig);
 

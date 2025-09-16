@@ -1,10 +1,10 @@
 export class PassauthException extends Error {
     constructor(context, name, message) {
-        super(`Passauth exception: ${message}`);
+        super(message);
         this.context = context;
         this.name = name;
         this.origin = "passauth";
-        this.message = `Passauth exception: ${message}`;
+        this.log = `Passauth exception: ${message}`;
     }
 }
 export class PassauthMissingConfigurationException extends PassauthException {

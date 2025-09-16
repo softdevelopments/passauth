@@ -2,7 +2,7 @@ export declare class PassauthException extends Error {
     context: string;
     name: string;
     origin: string;
-    message: string;
+    log: string;
     constructor(context: string, name: string, message: string);
 }
 export declare class PassauthMissingConfigurationException extends PassauthException {
