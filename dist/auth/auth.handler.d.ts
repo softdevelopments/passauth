@@ -5,7 +5,7 @@ export declare class AuthHandler<T extends User> {
     private config;
     constructor(options: HandlerOptions, repo: AuthRepo<T>);
     register(params: RegisterParams): Promise<T>;
-    login(params: LoginParams, jwtUserField?: keyof T): Promise<{
+    login(params: LoginParams, jwtUserFields?: Array<keyof T>): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;

@@ -9,7 +9,7 @@ export class PassauthException extends Error {
 }
 export class PassauthMissingConfigurationException extends PassauthException {
     constructor(key) {
-        super("config", "MissingConfiguration", `${key} option is required`);
+        super("config", "MissingConfiguration", `Passauth exception: ${key} option is required`);
     }
 }
 export class PassauthEmailAlreadyTakenException extends PassauthException {

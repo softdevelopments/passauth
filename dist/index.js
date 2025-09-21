@@ -14,4 +14,17 @@ export const Passauth = (options) => {
     const plugins = pluginInit(options?.plugins || [], handler);
     return { handler, plugins };
 };
+// type PassauthConfiguration = {
+//   secretKey: string;
+//   saltingRounds?: number;
+//   accessTokenExpirationMs?: number;
+//   refreshTokenExpirationMs?: number;
+//   repo: AuthRepo<User>;
+// }
+// Passauth({
+//   secretKey: 'your-secret-key',
+//   saltingRounds: 12,
+//   accessTokenExpirationMs: 1000 * 60 * 3, // 3 minutes
+//   refreshTokenExpirationMs: 1000 * 60 * 60 * 24, // 24 h
+// })
 //# sourceMappingURL=index.js.map

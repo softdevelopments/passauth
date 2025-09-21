@@ -22,3 +22,4 @@ export const Passauth = <T extends User>(options: PassauthConfiguration<T>) => {
 
   return { handler, plugins };
 };
+

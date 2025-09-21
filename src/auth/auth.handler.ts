@@ -118,63 +118,12 @@ export class AuthHandler<T extends User> {
     return tokens;
   }
 
-  revokeRefreshToken(userId: ID) {
-    delete this.refreshTokensLocalChaching[userId];
-  }
-
-  private async validateRefreshToken(userId: ID, refreshToken: string) {
-    const cachedToken = this.refreshTokensLocalChaching[userId];
-
-    if (!cachedToken || !cachedToken.token) {
-      throw new PassauthInvalidRefreshTokenException();
+  async revokeRefreshToken(userId: ID) {
+    if (this.repo.deleteCachedToken) {
+      await this.repo.deleteCachedToken(userId);
+    } else {
+      delete this.refreshTokensLocalChaching[userId];
     }
-
-    const isValid = await this.compareRefeshToken(
-      refreshToken,
-      userId,
-      cachedToken.token
-    );
-
-    if (!isValid) {
-      throw new PassauthInvalidRefreshTokenException();
-    }
-
-    const now = Date.now();
-
-    if (now >= cachedToken.exp) {
-      throw new PassauthInvalidRefreshTokenException();
-    }
-  }
-
-  private async saveRefreshToken(
-    userId: ID,
-    refreshToken: string,
-    exp: number
-  ) {
-    const hashedToken = await this.hashRefreshToken(refreshToken, userId);
-
-    const tokenData = {
-      token: hashedToken,
-      exp,
-    };
-
-    this.refreshTokensLocalChaching[userId] = tokenData;
-  }
-
-  private async hashRefreshToken(token: string, userId: ID) {
-    const hashed = await hash(`${userId}${token}`, 2);
-
-    return hashed;
-  }
-
-  private async compareRefeshToken(
-    token: string,
-    userId: ID,
-    hashedToken: string
-  ) {
-    const isValid = await compareHash(`${userId}${token}`, hashedToken);
-
-    return isValid;
   }
 
   async generateTokens<D>(userId: ID, data?: D) {
@@ -191,5 +140,80 @@ export class AuthHandler<T extends User> {
     await this.saveRefreshToken(userId, refreshToken, exp);
 
     return { accessToken, refreshToken };
+  }
+
+  private async getCachedRefreshToken(userId: ID) {
+    if (this.repo.getCachedToken) {
+      const cachedToken = await this.repo.getCachedToken(userId);
+
+      return cachedToken;
+    }
+
+    const cachedToken = this.refreshTokensLocalChaching[userId];
+
+    const now = Date.now();
+
+    if (!cachedToken) {
+      return null;
+    }
+
+    if (now >= cachedToken.exp) {
+      return null;
+    }
+
+    return cachedToken.token;
+  }
+
+  private async validateRefreshToken(userId: ID, refreshToken: string) {
+    const cachedToken = await this.getCachedRefreshToken(userId);
+
+    if (!cachedToken) {
+      throw new PassauthInvalidRefreshTokenException();
+    }
+
+    const isValid = await this.compareRefeshToken(
+      refreshToken,
+      userId,
+      cachedToken
+    );
+
+    if (!isValid) {
+      throw new PassauthInvalidRefreshTokenException();
+    }
+  }
+
+  private async saveRefreshToken(
+    userId: ID,
+    refreshToken: string,
+    exp: number
+  ) {
+    const hashedToken = await this.hashRefreshToken(refreshToken, userId);
+
+    const tokenData = {
+      token: hashedToken,
+      exp,
+    };
+
+    if (this.repo.saveCachedToken) {
+      await this.repo.saveCachedToken(userId, tokenData.token, exp);
+    } else {
+      this.refreshTokensLocalChaching[userId] = tokenData;
+    }
+  }
+
+  private async hashRefreshToken(token: string, userId: ID) {
+    const hashed = await hash(`${userId}${token}`, 2);
+
+    return hashed;
+  }
+
+  private async compareRefeshToken(
+    token: string,
+    userId: ID,
+    hashedToken: string
+  ) {
+    const isValid = await compareHash(`${userId}${token}`, hashedToken);
+
+    return isValid;
   }
 }

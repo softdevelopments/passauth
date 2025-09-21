@@ -1,4 +1,3 @@
-import type { JwtPayload } from "jsonwebtoken";
 import type { PluginInit } from "../plugin/plugin.types";
 
 export type ID = string | number;
@@ -7,7 +6,6 @@ export type User = {
   id: ID;
   email: string;
   password: string;
-  emailVerified?: boolean;
 };
 
 export type RegisterParams = {
@@ -23,6 +21,13 @@ export type LoginParams = {
 export interface AuthRepo<T extends User> {
   getUser(param: Partial<T>): Promise<T | null>;
   createUser(params: RegisterParams): Promise<T>;
+  getCachedToken?: (userId: ID) => Promise<string | undefined | null>;
+  saveCachedToken?: (
+    userId: ID,
+    token: string,
+    expiresInMs: number
+  ) => Promise<void>;
+  deleteCachedToken?: (userId: ID) => Promise<void>;
 }
 
 export type HandlerOptions = {

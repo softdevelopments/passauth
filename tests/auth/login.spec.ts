@@ -9,7 +9,7 @@ import {
   beforeAll,
 } from "@jest/globals";
 import { Passauth } from "../../src";
-import { PassauthConfiguration, User } from "../../src/auth/auth.types.js";
+import { ID, PassauthConfiguration, User } from "../../src/auth/auth.types.js";
 import {
   PassauthInvalidCredentialsException,
   PassauthInvalidUserException,
@@ -31,15 +31,103 @@ const userData = {
   emailVerified: false,
 };
 
-const repoMock: AuthRepo<User> = {
-  getUser: async (email) => ({
-    ...userData,
-    password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
-  }),
-  createUser: async (params) => userData,
-};
+describe("Passauth:Login - External Repo", () => {
+  let cachedToken: {
+    [userId: ID]: {
+      token: string;
+      exp: number;
+    };
+  } = {};
+
+  const repoMock: AuthRepo<User> = {
+    getUser: async (email) => ({
+      ...userData,
+      password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
+    }),
+    createUser: async (params) => userData,
+    getCachedToken: async (userId) => {
+      const token = cachedToken[userId];
+
+      const expiration = token?.exp;
+
+      if (!expiration || Date.now() > expiration) {
+        return null;
+      }
+
+      return token?.token;
+    },
+    saveCachedToken: async (userId, token, expiresInMs) => {
+      cachedToken[userId] = { token, exp: expiresInMs };
+    },
+    deleteCachedToken: async (userId) => {
+      delete cachedToken[userId];
+    },
+  };
+
+  const passauthConfig: PassauthConfiguration<User> = {
+    secretKey: "secretKey",
+    repo: repoMock,
+  };
+
+  describe("Cached Token", () => {
+    beforeAll(() => {
+      jest.useFakeTimers();
+    });
+
+    beforeEach(() => {
+      jest.restoreAllMocks();
+      jest.clearAllTimers();
+      cachedToken = {};
+    });
+
+    test("Should get saved refresh token", async () => {
+      const sut = Passauth(passauthConfig);
+
+      expect(await repoMock.getCachedToken?.(userData.id)).toBeNull();
+
+      const { accessToken, refreshToken } = await sut.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      expect(await repoMock.getCachedToken?.(userData.id)).toBeDefined();
+
+      expect(
+        await sut.handler.refreshToken(accessToken, refreshToken)
+      ).toMatchObject({
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+      });
+    });
+
+    test("Should delete cached token", async () => {
+      const sut = Passauth(passauthConfig);
+
+      expect(await repoMock.getCachedToken?.(userData.id)).toBeNull();
+
+      await sut.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      expect(await repoMock.getCachedToken?.(userData.id)).toBeDefined();
+
+      await sut.handler.revokeRefreshToken(userData.id);
+
+      expect(cachedToken[userData.id]).toBeUndefined();
+    });
+  });
+});
 
 describe("Passauth:Login - Configuration: minimal", () => {
+  const repoMock: AuthRepo<User> = {
+    getUser: async (email) => ({
+      ...userData,
+      password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
+    }),
+    createUser: async (params) => userData,
+  };
+
   const passauthConfig: PassauthConfiguration<User> = {
     secretKey: "secretKey",
     repo: repoMock,
@@ -124,7 +212,9 @@ describe("Passauth:Login - Configuration: minimal", () => {
       ["email"]
     );
 
-    const decodedToken = jwt.decode(loginResponse.accessToken);
+    const decodedToken = passauth.handler.verifyAccessToken(
+      loginResponse.accessToken
+    );
 
     expect(decodedToken).toEqual(
       expect.objectContaining({
