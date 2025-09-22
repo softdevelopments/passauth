@@ -15,6 +15,7 @@ import {
   PassauthInvalidUserException,
   PassauthInvalidRefreshTokenException,
   PassauthInvalidAccessTokenException,
+  PassauthBlockedUserException,
 } from "../../src/auth/auth.exceptions";
 import { AuthRepo } from "../../src/auth/auth.types.js";
 import { hash } from "../../src/auth/auth.utils.js";
@@ -29,6 +30,7 @@ const userData = {
   email: "user@email.com",
   password: "password123",
   emailVerified: false,
+  isBlocked: false,
 };
 
 describe("Passauth:Login - External Repo", () => {
@@ -180,6 +182,21 @@ describe("Passauth:Login - Configuration: minimal", () => {
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
     });
+  });
+
+  test("Login - Should throw error if user is blocked", async () => {
+    jest
+      .spyOn(repoMock, "getUser")
+      .mockImplementationOnce(async () => ({ ...userData, isBlocked: true }));
+
+    const passauth = Passauth(passauthConfig);
+
+    await expect(
+      passauth.handler.login({
+        email: userData.email,
+        password: userData.password,
+      })
+    ).rejects.toThrow(PassauthBlockedUserException);
   });
 
   test("Login - Access token should have correct claims", async () => {
