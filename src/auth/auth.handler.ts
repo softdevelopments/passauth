@@ -4,6 +4,7 @@ import {
   PassauthInvalidUserException,
   PassauthEmailAlreadyTakenException,
   PassauthInvalidAccessTokenException,
+  PassauthBlockedUserException,
 } from "./auth.exceptions";
 import {
   DEFAULT_JWT_EXPIRATION_MS,
@@ -74,6 +75,10 @@ export class AuthHandler<T extends User> {
 
     if (!user) {
       throw new PassauthInvalidUserException(params.email);
+    }
+
+    if (user.isBlocked) {
+      throw new PassauthBlockedUserException(params.email)
     }
 
     const isValidPassword = await compareHash(params.password, user.password);

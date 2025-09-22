@@ -6,6 +6,7 @@ export type User = {
   id: ID;
   email: string;
   password: string;
+  isBlocked: boolean;
 };
 
 export type RegisterParams = {

@@ -26,8 +26,14 @@ export class PassauthEmailAlreadyTakenException extends PassauthException {
 }
 
 export class PassauthInvalidUserException extends PassauthException {
+  constructor(data: string) {
+    super("login", "InvalidUser", `Invalid user: ${data}`);
+  }
+}
+
+export class PassauthBlockedUserException extends PassauthException {
   constructor(email: string) {
-    super("login", "InvalidUser", `Invalid email: ${email}`);
+    super("login", "BlockedUser", `User is blocked: ${email}`);
   }
 }
 
