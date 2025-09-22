@@ -1,2 +1,2 @@
 export * from './plugin.handler';
-export * from './plugin.types';
+export type * from './plugin.types';

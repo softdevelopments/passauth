@@ -57,7 +57,7 @@ describe("Passauth:Login - External Repo", () => {
       return token?.token;
     },
     saveCachedToken: async (userId, token, expiresInMs) => {
-      cachedToken[userId] = { token, exp: expiresInMs };
+      cachedToken[userId] = { token, exp: Date.now() + expiresInMs };
     },
     deleteCachedToken: async (userId) => {
       delete cachedToken[userId];

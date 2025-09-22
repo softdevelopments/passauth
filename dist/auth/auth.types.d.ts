@@ -16,6 +16,9 @@ export type LoginParams = {
 export interface AuthRepo<T extends User> {
     getUser(param: Partial<T>): Promise<T | null>;
     createUser(params: RegisterParams): Promise<T>;
+    getCachedToken?: (userId: ID) => Promise<string | undefined | null>;
+    saveCachedToken?: (userId: ID, token: string, expiresInMs: number) => Promise<void>;
+    deleteCachedToken?: (userId: ID) => Promise<void>;
 }
 export type HandlerOptions = {
     secretKey: string;

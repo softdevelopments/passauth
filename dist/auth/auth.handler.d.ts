@@ -14,13 +14,14 @@ export declare class AuthHandler<T extends User> {
         accessToken: string;
         refreshToken: string;
     }>;
-    revokeRefreshToken(userId: ID): void;
-    private validateRefreshToken;
-    private saveRefreshToken;
-    private hashRefreshToken;
-    private compareRefeshToken;
+    revokeRefreshToken(userId: ID): Promise<void>;
     generateTokens<D>(userId: ID, data?: D): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;
+    private getCachedRefreshToken;
+    private validateRefreshToken;
+    private saveRefreshToken;
+    private hashRefreshToken;
+    private compareRefeshToken;
 }

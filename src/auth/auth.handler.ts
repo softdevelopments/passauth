@@ -84,10 +84,10 @@ export class AuthHandler<T extends User> {
 
     const jwtData = jwtUserFields
       ? jwtUserFields.reduce((params, userKey) => {
-          params[userKey] = user[userKey];
+        params[userKey] = user[userKey];
 
-          return params;
-        }, {} as Partial<T>)
+        return params;
+      }, {} as Partial<T>)
       : undefined;
 
     const tokens = this.generateTokens(user.id, jwtData);
@@ -195,7 +195,7 @@ export class AuthHandler<T extends User> {
     };
 
     if (this.repo.saveCachedToken) {
-      await this.repo.saveCachedToken(userId, tokenData.token, exp);
+      await this.repo.saveCachedToken(userId, tokenData.token, this.config.REFRESH_TOKEN_EXPIRATION_MS);
     } else {
       this.refreshTokensLocalChaching[userId] = tokenData;
     }
