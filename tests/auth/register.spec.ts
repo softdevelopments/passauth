@@ -6,8 +6,8 @@ import { PassauthEmailAlreadyTakenException } from "../../src/auth/auth.exceptio
 import { AuthRepo } from "../../src/auth/auth.types.js";
 
 const repoMock: AuthRepo<User> = {
-  getUser: async (email) => null,
-  createUser: async (params) => {
+  getUser: async (_email) => null,
+  createUser: async (_params) => {
     return {
       id: 1,
       email: "user@email.com",
@@ -36,8 +36,8 @@ describe("Passauth:Register - Configuration: minimal", () => {
           id: 1,
           email: "user@email.com",
           password: "password123",
-        })
-      )
+        }),
+      ),
     );
 
     const response = passauth.handler.register({
@@ -64,7 +64,7 @@ describe("Passauth:Register - Configuration: minimal", () => {
       passauth.handler.register({
         email: "test@example.com",
         password: "password",
-      })
+      }),
     ).rejects.toThrow(CustomError);
 
     getUserSpy.mockRestore();
@@ -75,7 +75,7 @@ describe("Passauth:Register - Configuration: minimal", () => {
       passauth.handler.register({
         email: "test@example.com",
         password: "password",
-      })
+      }),
     ).rejects.toThrow(CustomError);
   });
 
@@ -95,7 +95,7 @@ describe("Passauth:Register - Configuration: minimal", () => {
       expect.objectContaining({
         email: registerData.email,
         password: expect.any(String),
-      })
+      }),
     );
 
     const hashedPassword = createUserSpy.mock.calls[0][0].password;
@@ -103,7 +103,7 @@ describe("Passauth:Register - Configuration: minimal", () => {
     expect(hashedPassword).not.toBe(registerData.password);
 
     expect(await bcrypt.compare(registerData.password, hashedPassword)).toBe(
-      true
+      true,
     );
   });
 });

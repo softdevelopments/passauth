@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AuthHandler } from "../auth/auth.handler";
 import type { User } from "../auth/auth.types";
 
@@ -17,7 +18,7 @@ export type SharedComponents<U extends User> = {
 };
 
 export type PluginInit<U extends User, O extends { [key: string]: any }> = (
-  params: PluginInitParams<O>
+  params: PluginInitParams<O>,
 ) => {
   name: string;
   handlerInit: (components: SharedComponents<U>) => any;

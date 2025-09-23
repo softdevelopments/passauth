@@ -41,7 +41,7 @@ export const generateAccessToken = <D>({
     secretKey,
     {
       expiresIn: `${expiresIn}`,
-    }
+    },
   );
 };
 
@@ -57,7 +57,7 @@ export const verifyAccessToken = <D>(token: string, secretKey: string) => {
     const decoded = jwt.verify(token, secretKey) as AuthJwtPayload<D>;
 
     return decoded;
-  } catch (error) {
+  } catch (_error) {
     throw new PassauthInvalidAccessTokenException();
   }
 };

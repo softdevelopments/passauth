@@ -2,7 +2,11 @@ export class PassauthException extends Error {
   public origin = "passauth";
   public log: string;
 
-  constructor(public context: string, public name: string, message: string) {
+  constructor(
+    public context: string,
+    public name: string,
+    message: string,
+  ) {
     super(message);
 
     this.log = `Passauth exception: ${message}`;
@@ -14,7 +18,7 @@ export class PassauthMissingConfigurationException extends PassauthException {
     super(
       "config",
       "MissingConfiguration",
-      `Passauth exception: ${key} option is required`
+      `Passauth exception: ${key} option is required`,
     );
   }
 }

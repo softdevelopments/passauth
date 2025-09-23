@@ -42,11 +42,11 @@ describe("Passauth:Login - External Repo", () => {
   } = {};
 
   const repoMock: AuthRepo<User> = {
-    getUser: async (email) => ({
+    getUser: async (_email) => ({
       ...userData,
       password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
     }),
-    createUser: async (params) => userData,
+    createUser: async (_params) => userData,
     getCachedToken: async (userId) => {
       const token = cachedToken[userId];
 
@@ -95,7 +95,7 @@ describe("Passauth:Login - External Repo", () => {
       expect(await repoMock.getCachedToken?.(userData.id)).toBeDefined();
 
       expect(
-        await sut.handler.refreshToken(accessToken, refreshToken)
+        await sut.handler.refreshToken(accessToken, refreshToken),
       ).toMatchObject({
         accessToken: expect.any(String),
         refreshToken: expect.any(String),
@@ -123,11 +123,11 @@ describe("Passauth:Login - External Repo", () => {
 
 describe("Passauth:Login - Configuration: minimal", () => {
   const repoMock: AuthRepo<User> = {
-    getUser: async (email) => ({
+    getUser: async (_email) => ({
       ...userData,
       password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
     }),
-    createUser: async (params) => userData,
+    createUser: async (_params) => userData,
   };
 
   const passauthConfig: PassauthConfiguration<User> = {
@@ -155,7 +155,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
       passauth.handler.login({
         email: "user@email.com",
         password: "password123",
-      })
+      }),
     ).rejects.toThrow(PassauthInvalidUserException);
   });
 
@@ -166,7 +166,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
       passauth.handler.login({
         email: "user@email.com",
         password: "wrongpassword",
-      })
+      }),
     ).rejects.toThrow(PassauthInvalidCredentialsException);
   });
 
@@ -177,7 +177,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
       passauth.handler.login({
         email: userData.email,
         password: userData.password,
-      })
+      }),
     ).resolves.toEqual({
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
@@ -195,7 +195,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
       passauth.handler.login({
         email: userData.email,
         password: userData.password,
-      })
+      }),
     ).rejects.toThrow(PassauthBlockedUserException);
   });
 
@@ -226,11 +226,11 @@ describe("Passauth:Login - Configuration: minimal", () => {
         email: userData.email,
         password: userData.password,
       },
-      ["email"]
+      ["email"],
     );
 
     const decodedToken = passauth.handler.verifyAccessToken(
-      loginResponse.accessToken
+      loginResponse.accessToken,
     );
 
     expect(decodedToken).toEqual(
@@ -238,7 +238,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
         data: {
           email: userData.email,
         },
-      })
+      }),
     );
   });
 
@@ -253,7 +253,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
     jest.advanceTimersByTime(DEFAULT_JWT_EXPIRATION_MS + 1);
 
     expect(() =>
-      passauth.handler.verifyAccessToken(loginResponse.accessToken)
+      passauth.handler.verifyAccessToken(loginResponse.accessToken),
     ).toThrow(PassauthInvalidAccessTokenException);
   });
 
@@ -266,7 +266,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
     });
 
     const decodedToken = passauth.handler.verifyAccessToken(
-      loginResponse.accessToken
+      loginResponse.accessToken,
     );
 
     expect(decodedToken).toHaveProperty("sub");
@@ -287,7 +287,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
 
     const newTokens = await passauth.handler.refreshToken(
       loginResponse.accessToken,
-      loginResponse.refreshToken
+      loginResponse.refreshToken,
     );
 
     expect(newTokens).toHaveProperty("accessToken");
@@ -308,8 +308,8 @@ describe("Passauth:Login - Configuration: minimal", () => {
     await expect(
       passauth.handler.refreshToken(
         loginResponse.accessToken,
-        crypto.randomBytes(16).toString("hex")
-      )
+        crypto.randomBytes(16).toString("hex"),
+      ),
     ).rejects.toThrow();
   });
 
@@ -326,8 +326,8 @@ describe("Passauth:Login - Configuration: minimal", () => {
     await expect(
       passauth.handler.refreshToken(
         loginResponse.accessToken,
-        loginResponse.refreshToken
-      )
+        loginResponse.refreshToken,
+      ),
     ).rejects.toThrow(PassauthInvalidRefreshTokenException);
   });
 
@@ -344,8 +344,8 @@ describe("Passauth:Login - Configuration: minimal", () => {
     await expect(
       passauth.handler.refreshToken(
         loginResponse.accessToken,
-        loginResponse.refreshToken
-      )
+        loginResponse.refreshToken,
+      ),
     ).rejects.toThrow(PassauthInvalidRefreshTokenException);
   });
 });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from "@jest/globals";
 import { Passauth } from "../../src";
 import { PassauthConfiguration, User } from "../../src/auth/auth.types";
@@ -5,8 +6,8 @@ import { PassauthMissingConfigurationException } from "../../src/auth/auth.excep
 import { AuthRepo } from "../../src/auth/auth.types";
 
 const repoMock: AuthRepo<User> = {
-  getUser: async (email) => null,
-  createUser: async (params) => {
+  getUser: async (_email) => null,
+  createUser: async (_params) => {
     return {
       id: 1,
       email: "user@email.com",
@@ -26,17 +27,17 @@ const passauthConfig: PassauthConfiguration<User> = {
 describe("Passauth - Configuration", () => {
   it("Should throw error if required option is not provided", () => {
     expect(() =>
-      Passauth({ ...passauthConfig, secretKey: undefined } as any)
+      Passauth({ ...passauthConfig, secretKey: undefined } as any),
     ).toThrow(PassauthMissingConfigurationException);
     expect(() =>
-      Passauth({ ...passauthConfig, secretKey: undefined } as any)
+      Passauth({ ...passauthConfig, secretKey: undefined } as any),
     ).toThrow("Passauth exception: secretKey option is required");
 
     expect(() =>
-      Passauth({ ...passauthConfig, repo: undefined } as any)
+      Passauth({ ...passauthConfig, repo: undefined } as any),
     ).toThrow(PassauthMissingConfigurationException);
     expect(() =>
-      Passauth({ ...passauthConfig, repo: undefined } as any)
+      Passauth({ ...passauthConfig, repo: undefined } as any),
     ).toThrow("Passauth exception: repo option is required");
   });
 

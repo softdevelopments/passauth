@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AuthHandler } from "../auth/auth.handler";
 import type { User } from "../auth/auth.types";
 import type { PluginInit, Plugins } from "./plugin.types";
 
 export const pluginInit = <U extends User>(
   plugins: Array<ReturnType<PluginInit<U, any>>>,
-  passauthHandler: AuthHandler<U>
+  passauthHandler: AuthHandler<U>,
 ) => {
   const pluginsCollection = plugins.reduce((acc, plugin) => {
     acc[plugin.name] = {

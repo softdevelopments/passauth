@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { PluginInit } from "../plugin/plugin.types";
 
 export type ID = string | number;
@@ -26,7 +27,7 @@ export interface AuthRepo<T extends User> {
   saveCachedToken?: (
     userId: ID,
     token: string,
-    expiresInMs: number
+    expiresInMs: number,
   ) => Promise<void>;
   deleteCachedToken?: (userId: ID) => Promise<void>;
 }
