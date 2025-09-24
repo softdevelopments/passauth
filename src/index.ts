@@ -16,7 +16,7 @@ export const Passauth = <
   U extends User,
   P extends readonly PluginSpec<PassauthHandlerInt<U>, any>[], // base único
 >(
-  options: PassauthConfiguration<U, P>
+  options: PassauthConfiguration<U, P>,
 ) => {
   if (!options.secretKey) {
     throw new PassauthMissingConfigurationException("secretKey");

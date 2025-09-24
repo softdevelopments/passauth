@@ -26,7 +26,7 @@ export interface AuthRepo<T extends User> {
   saveCachedToken?: (
     userId: ID,
     token: string,
-    expiresInMs: number
+    expiresInMs: number,
   ) => Promise<void>;
   deleteCachedToken?: (userId: ID) => Promise<void>;
 }
@@ -49,15 +49,16 @@ type AuthTokensResponse = {
 };
 
 export interface PassauthHandler<U extends User> {
+  repo: AuthRepo<U>;
   register(params: RegisterParams): Promise<U>;
   login(
     params: LoginParams,
-    jwtUserFields?: Array<keyof U>
+    jwtUserFields?: Array<keyof U>,
   ): Promise<AuthTokensResponse>;
   verifyAccessToken<D>(accessToken: string): AuthJwtPayload<D>;
   refreshToken(
     accessToken: string,
-    refreshToken: string
+    refreshToken: string,
   ): Promise<AuthTokensResponse>;
   revokeRefreshToken(userId: ID): Promise<void>;
   generateTokens<D>(userId: ID, data?: D): Promise<AuthTokensResponse>;
@@ -75,13 +76,13 @@ type PassauthHandlerPrivate = {
   saveRefreshToken(
     userId: ID,
     refreshToken: string,
-    exp: number
+    exp: number,
   ): Promise<void>;
   hashRefreshToken(token: string, userId: ID): Promise<string>;
   compareRefeshToken(
     token: string,
     userId: ID,
-    hashedToken: string
+    hashedToken: string,
   ): Promise<boolean>;
 };
 

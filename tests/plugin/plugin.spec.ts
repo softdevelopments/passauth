@@ -10,7 +10,6 @@ import {
 import { Passauth, PluginSpec, SharedComponents } from "../../src";
 import {
   LoginParams,
-  PassauthHandler,
   PassauthHandlerInt,
   User,
 } from "../../src/auth/auth.types.js";
@@ -118,7 +117,7 @@ describe("Plugin", () => {
       passauth.handler.login({
         email: userData.email,
         password: userData.password,
-      })
+      }),
     ).rejects.toThrow("Invalid password");
 
     jest.spyOn(repoMock, "getUser").mockImplementationOnce(async (_email) => ({
@@ -130,12 +129,12 @@ describe("Plugin", () => {
       await passauth.handler.login({
         email: userData.email,
         password: "1234pass",
-      })
+      }),
     ).toEqual(
       expect.objectContaining({
         accessToken: expect.any(String),
         refreshToken: expect.any(String),
-      })
+      }),
     );
   });
 
