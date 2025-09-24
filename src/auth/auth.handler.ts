@@ -42,9 +42,11 @@ export class AuthHandler<T extends User> {
     SECRET_KEY: string;
   };
 
+  public _aux;
+
   constructor(
     options: HandlerOptions,
-    public repo: AuthRepo<T>,
+    public repo: AuthRepo<T>
   ) {
     this.config = {
       SALTING_ROUNDS: options.saltingRounds || DEFAULT_SALTING_ROUNDS,
@@ -53,6 +55,14 @@ export class AuthHandler<T extends User> {
       REFRESH_TOKEN_EXPIRATION_MS:
         options.refreshTokenExpirationMs || DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
       SECRET_KEY: options.secretKey,
+    };
+
+    this._aux = {
+      config: this.config,
+      validateRefreshToken: typeof this.validateRefreshToken,
+      saveRefreshToken: typeof this.saveRefreshToken,
+      hashRefreshToken: typeof this.hashRefreshToken,
+      compareRefeshToken: typeof this.compareRefeshToken,
     };
   }
 
@@ -106,7 +116,7 @@ export class AuthHandler<T extends User> {
   verifyAccessToken<D>(accessToken: string) {
     const decodedToken = verifyAccessToken<D>(
       accessToken,
-      this.config.SECRET_KEY,
+      this.config.SECRET_KEY
     );
 
     if (!decodedToken) {
@@ -182,7 +192,7 @@ export class AuthHandler<T extends User> {
     const isValid = await this.compareRefeshToken(
       refreshToken,
       userId,
-      cachedToken,
+      cachedToken
     );
 
     if (!isValid) {
@@ -193,7 +203,7 @@ export class AuthHandler<T extends User> {
   private async saveRefreshToken(
     userId: ID,
     refreshToken: string,
-    exp: number,
+    exp: number
   ) {
     const hashedToken = await this.hashRefreshToken(refreshToken, userId);
 
@@ -206,7 +216,7 @@ export class AuthHandler<T extends User> {
       await this.repo.saveCachedToken(
         userId,
         tokenData.token,
-        this.config.REFRESH_TOKEN_EXPIRATION_MS,
+        this.config.REFRESH_TOKEN_EXPIRATION_MS
       );
     } else {
       this.refreshTokensLocalChaching[userId] = tokenData;
@@ -222,7 +232,7 @@ export class AuthHandler<T extends User> {
   private async compareRefeshToken(
     token: string,
     userId: ID,
-    hashedToken: string,
+    hashedToken: string
   ) {
     const isValid = await compareHash(`${userId}${token}`, hashedToken);
 
