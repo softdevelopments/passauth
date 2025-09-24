@@ -44,7 +44,6 @@
   "scripts": {
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "build": "tsc && tsc-esm-fix",
-    "postbuild": "tsc-esm-fix",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint --fix && prettier --write ."
   },
