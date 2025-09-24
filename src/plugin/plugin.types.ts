@@ -1,25 +1,28 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { AuthHandler } from "../auth/auth.handler";
-import type { User } from "../auth/auth.types";
+import type { PassauthHandler, User } from "../auth/auth.types";
 
-export type Plugins = {
-  [key: string]: {
-    handler: any;
-  };
-};
-
-export type PluginInitParams<T extends { [key: string]: any }> = {
-  [K in keyof T]: T[K];
-};
+export type Plugins = Record<string, any>;
 
 export type SharedComponents<U extends User> = {
-  passauthHandler: AuthHandler<U>;
+  passauthHandler: PassauthHandler<U>;
   plugins: Plugins;
 };
 
-export type PluginInit<U extends User, O extends { [key: string]: any }> = (
-  params: PluginInitParams<O>,
-) => {
+export type PluginSpec<H, A> = {
   name: string;
-  handlerInit: (components: SharedComponents<U>) => any;
+  handlerInit: (components: { passauthHandler: H; plugins: Plugins }) => void;
+  __types?: (h: H) => H & A; // <- sem "?"
 };
+
+type ApplyAug<H, P> = P extends { __types?: (h: infer HH) => infer R }
+  ? HH extends H
+    ? R
+    : H
+  : H;
+
+export type ComposeAug<H, L extends readonly unknown[]> = L extends readonly [
+  infer Head,
+  ...infer Tail,
+]
+  ? ComposeAug<ApplyAug<H, Head>, Tail>
+  : H;

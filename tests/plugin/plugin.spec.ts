@@ -7,10 +7,11 @@ import {
   jest,
   beforeAll,
 } from "@jest/globals";
-import { Passauth, SharedComponents } from "../../src";
+import { Passauth, PluginSpec, SharedComponents } from "../../src";
 import {
   LoginParams,
-  PassauthConfiguration,
+  PassauthHandler,
+  PassauthHandlerInt,
   User,
 } from "../../src/auth/auth.types.js";
 
@@ -35,7 +36,7 @@ describe("Plugin", () => {
     createUser: async (_params) => userData,
   };
 
-  const passauthConfig: PassauthConfiguration<User> = {
+  const passauthConfig = {
     secretKey: "secretKey",
     repo: repoMock,
   };
@@ -110,7 +111,7 @@ describe("Plugin", () => {
         customPlugin({
           passwordRegex: /\d{4}[a-zA-Z]{4}/,
         }),
-      ],
+      ] as const,
     });
 
     await expect(
@@ -139,18 +140,19 @@ describe("Plugin", () => {
   });
 
   test("Should be able to access config Passauth handler methods", async () => {
-    const customPlugin = (config: { passwordRegex: RegExp }) => {
-      return {
-        name: "CustomPlugin",
-        handlerInit: ({ passauthHandler }: SharedComponents<User>) => {
-          (passauthHandler as any).getConfig = () => {
-            return {
-              saltingRounds: passauth.handler._aux.config.SALTING_ROUNDS,
-            };
-          };
-        },
-      };
-    };
+    type ConfigAPI = { getConfig(): { saltingRounds: number } };
+    const customPlugin = (_cfg: {
+      passwordRegex: RegExp;
+    }): PluginSpec<PassauthHandlerInt<User>, ConfigAPI> => ({
+      name: "CustomPlugin",
+      handlerInit: ({ passauthHandler }) => {
+        (passauthHandler as any).getConfig = () => ({
+          saltingRounds: (passauthHandler as any)._aux.config.SALTING_ROUNDS,
+        });
+      },
+      __types: (_h: PassauthHandlerInt<User>) =>
+        undefined as any as PassauthHandlerInt<User> & ConfigAPI,
+    });
 
     const passauth = Passauth({
       ...passauthConfig,
@@ -158,10 +160,10 @@ describe("Plugin", () => {
         customPlugin({
           passwordRegex: /\d{4}[a-zA-Z]{4}/,
         }),
-      ],
+      ] as const,
     });
 
-    expect((passauth.handler as any).getConfig()).toEqual({
+    expect(passauth.handler.getConfig()).toEqual({
       saltingRounds: DEFAULT_SALTING_ROUNDS,
     });
   });

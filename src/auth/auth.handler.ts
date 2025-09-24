@@ -16,6 +16,7 @@ import type {
   HandlerOptions,
   ID,
   LoginParams,
+  PassauthHandler,
   RegisterParams,
   User,
 } from "./auth.types";
@@ -28,7 +29,7 @@ import {
   compareHash,
 } from "./auth.utils";
 
-export class AuthHandler<T extends User> {
+export class AuthHandler<U extends User> implements PassauthHandler<U> {
   private refreshTokensLocalChaching: {
     [userId: ID]: {
       token: string;
@@ -46,7 +47,7 @@ export class AuthHandler<T extends User> {
 
   constructor(
     options: HandlerOptions,
-    public repo: AuthRepo<T>
+    public repo: AuthRepo<U>
   ) {
     this.config = {
       SALTING_ROUNDS: options.saltingRounds || DEFAULT_SALTING_ROUNDS,
@@ -69,7 +70,7 @@ export class AuthHandler<T extends User> {
   async register(params: RegisterParams) {
     const existingUser = await this.repo.getUser({
       email: params.email,
-    } as Partial<T>);
+    } as Partial<U>);
 
     if (existingUser) {
       throw new PassauthEmailAlreadyTakenException();
@@ -83,8 +84,8 @@ export class AuthHandler<T extends User> {
     return createdUser;
   }
 
-  async login(params: LoginParams, jwtUserFields?: Array<keyof T>) {
-    const user = await this.repo.getUser({ email: params.email } as Partial<T>);
+  async login(params: LoginParams, jwtUserFields?: Array<keyof U>) {
+    const user = await this.repo.getUser({ email: params.email } as Partial<U>);
 
     if (!user) {
       throw new PassauthInvalidUserException(params.email);
@@ -105,7 +106,7 @@ export class AuthHandler<T extends User> {
           params[userKey] = user[userKey];
 
           return params;
-        }, {} as Partial<T>)
+        }, {} as Partial<U>)
       : undefined;
 
     const tokens = this.generateTokens(user.id, jwtData);
