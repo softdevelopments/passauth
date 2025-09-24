@@ -14,9 +14,11 @@ export type PluginSpec<H, A> = {
   __types?: (h: H) => H & A; // <- sem "?"
 };
 
-type ApplyAug<H, P> = P extends { __types?: (h: infer HH) => infer R }
+type Override<A, B> = Omit<A, keyof B> & B;
+
+type ApplyAug<H, P> = P extends { __types?: (h: infer HH) => infer A }
   ? HH extends H
-    ? R
+    ? Override<H, A>
     : H
   : H;
 
