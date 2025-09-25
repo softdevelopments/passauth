@@ -1,22 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { PassauthHandler, User } from "../auth/auth.types";
+import type {
+  PassauthConfiguration,
+  PassauthHandler,
+  User,
+} from "../auth/auth.types";
 
 export type Plugins = Record<string, any>;
 
 export type SharedComponents<U extends User> = {
   passauthHandler: PassauthHandler<U>;
   plugins: Plugins;
+  options: PassauthConfiguration<U, any>;
 };
 
 export type PluginSpec<H, A> = {
   name: string;
   handlerInit: (components: { passauthHandler: H; plugins: Plugins }) => void;
-  __types?: (h: H) => H & A; // <- sem "?"
+  __types?: (h: H) => H & A;
 };
 
-type Override<A, B> = Omit<A, keyof B> & B;
+export type Override<A, B> = Omit<A, keyof B> & B;
 
-type ApplyAug<H, P> = P extends { __types?: (h: infer HH) => infer A }
+export type ApplyAug<H, P> = P extends { __types?: (h: infer HH) => infer A }
   ? HH extends H
     ? Override<H, A>
     : H

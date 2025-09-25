@@ -53,7 +53,7 @@ describe("Plugin", () => {
     type LoginOverride<U extends User> = {
       login(
         p: LoginParams,
-        jwtUserFields?: Array<keyof U>
+        jwtUserFields?: Array<keyof U>,
       ): Promise<{
         loginText: string;
         accessToken: string;
@@ -128,7 +128,7 @@ describe("Plugin", () => {
       passauth.handler.login({
         email: userData.email,
         password: userData.password,
-      })
+      }),
     ).rejects.toThrow("Invalid password");
 
     jest.spyOn(repoMock, "getUser").mockImplementationOnce(async (_email) => ({
@@ -140,12 +140,12 @@ describe("Plugin", () => {
       await passauth.handler.login({
         email: userData.email,
         password: "1234pass",
-      })
+      }),
     ).toEqual(
       expect.objectContaining({
         accessToken: expect.any(String),
         refreshToken: expect.any(String),
-      })
+      }),
     );
   });
 

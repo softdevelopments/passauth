@@ -25,18 +25,21 @@ export const Passauth = <
     throw new PassauthMissingConfigurationException("repo");
   }
 
-  const handler = new AuthHandler<U>(options, options.repo);
-  const plugins: Record<string, any> = {};
+  const sharedComponents = {
+    passauthHandler: new AuthHandler<U>(options, options.repo),
+    passauthOptions: options,
+    plugins: {} as Record<string, any>,
+  };
 
   options.plugins?.forEach((pl) => {
-    plugins[pl.name] = { handler: {} };
-    pl.handlerInit({
-      passauthHandler: handler as unknown as PassauthHandlerInt<U>,
-      plugins,
-    });
+    sharedComponents.plugins[pl.name] = { handler: {} };
+    pl.handlerInit(sharedComponents as any);
   });
 
   type HandlerWithPlugins = Omit<ComposeAug<PassauthHandler<U>, P>, "_aux">;
 
-  return { handler: handler as unknown as HandlerWithPlugins, plugins };
+  return {
+    handler: sharedComponents.passauthHandler as unknown as HandlerWithPlugins,
+    plugins: sharedComponents.plugins,
+  };
 };

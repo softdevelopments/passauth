@@ -87,6 +87,7 @@ type PassauthHandlerPrivate = {
 };
 
 export interface PassauthHandlerInt<U extends User> extends PassauthHandler<U> {
+  _name: string;
   _aux: {
     config: PassauthHandlerConfig;
   } & PassauthHandlerPrivate;

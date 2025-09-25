@@ -44,6 +44,7 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
   };
 
   public _aux;
+  public _name = "Passauth";
 
   constructor(
     options: HandlerOptions,

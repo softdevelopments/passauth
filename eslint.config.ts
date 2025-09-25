@@ -21,5 +21,5 @@ export default defineConfig([
     },
   },
   tseslint.configs.recommended,
-  globalIgnores(["jest.config.cjs"]),
+  globalIgnores(["jest.config.cjs", "dist"]),
 ]);
