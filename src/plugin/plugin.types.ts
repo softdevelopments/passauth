@@ -9,8 +9,8 @@ export type Plugins = Record<string, any>;
 
 export type SharedComponents<U extends User> = {
   passauthHandler: PassauthHandler<U>;
+  passauthOptions: PassauthConfiguration<U, any>;
   plugins: Plugins;
-  options: PassauthConfiguration<U, any>;
 };
 
 export type PluginSpec<H, A> = {

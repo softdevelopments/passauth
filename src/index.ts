@@ -7,7 +7,11 @@ import type {
   PassauthHandlerInt,
   User,
 } from "./auth/auth.types";
-import { ComposeAug, PluginSpec } from "./plugin/plugin.types";
+import {
+  ComposeAug,
+  PluginSpec,
+  SharedComponents,
+} from "./plugin/plugin.types";
 
 export * from "./auth/index";
 export * from "./plugin/index";
@@ -16,7 +20,7 @@ export const Passauth = <
   U extends User,
   P extends readonly PluginSpec<PassauthHandlerInt<U>, any>[], // base único
 >(
-  options: PassauthConfiguration<U, P>,
+  options: PassauthConfiguration<U, P>
 ) => {
   if (!options.secretKey) {
     throw new PassauthMissingConfigurationException("secretKey");
@@ -29,7 +33,7 @@ export const Passauth = <
     passauthHandler: new AuthHandler<U>(options, options.repo),
     passauthOptions: options,
     plugins: {} as Record<string, any>,
-  };
+  } as SharedComponents<U>;
 
   options.plugins?.forEach((pl) => {
     sharedComponents.plugins[pl.name] = { handler: {} };
