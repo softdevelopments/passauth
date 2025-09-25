@@ -13,9 +13,9 @@ export type SharedComponents<U extends User> = {
   plugins: Plugins;
 };
 
-export type PluginSpec<H, A> = {
+export type PluginSpec<U extends User, H, A> = {
   name: string;
-  handlerInit: (components: { passauthHandler: H; plugins: Plugins }) => void;
+  handlerInit: (components: SharedComponents<U>) => void;
   __types?: (h: H) => H & A;
 };
 

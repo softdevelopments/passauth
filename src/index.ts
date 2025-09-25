@@ -18,9 +18,9 @@ export * from "./plugin/index";
 
 export const Passauth = <
   U extends User,
-  P extends readonly PluginSpec<PassauthHandlerInt<U>, any>[], // base único
+  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[], // base único
 >(
-  options: PassauthConfiguration<U, P>
+  options: PassauthConfiguration<U, P>,
 ) => {
   if (!options.secretKey) {
     throw new PassauthMissingConfigurationException("secretKey");
@@ -37,7 +37,7 @@ export const Passauth = <
 
   options.plugins?.forEach((pl) => {
     sharedComponents.plugins[pl.name] = { handler: {} };
-    pl.handlerInit(sharedComponents as any);
+    pl.handlerInit(sharedComponents);
   });
 
   type HandlerWithPlugins = Omit<ComposeAug<PassauthHandler<U>, P>, "_aux">;

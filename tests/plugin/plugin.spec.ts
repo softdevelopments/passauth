@@ -153,7 +153,7 @@ describe("Plugin", () => {
     type ConfigAPI = { getConfig(): { saltingRounds: number } };
     const customPlugin = (_cfg: {
       passwordRegex: RegExp;
-    }): PluginSpec<PassauthHandlerInt<User>, ConfigAPI> => ({
+    }): PluginSpec<User, PassauthHandlerInt<User>, ConfigAPI> => ({
       name: "CustomPlugin",
       handlerInit: ({ passauthHandler }) => {
         (passauthHandler as any).getConfig = () => ({
