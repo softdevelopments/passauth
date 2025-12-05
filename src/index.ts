@@ -18,9 +18,9 @@ export * from "./plugin/index";
 
 export const Passauth = <
   U extends User,
-  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[], // base único
+  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[],
 >(
-  options: PassauthConfiguration<U, P>,
+  options: PassauthConfiguration<U, P>
 ) => {
   if (!options.secretKey) {
     throw new PassauthMissingConfigurationException("secretKey");
