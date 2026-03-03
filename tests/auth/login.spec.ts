@@ -9,21 +9,21 @@ import {
   beforeAll,
 } from "@jest/globals";
 import { Passauth } from "../../src";
-import { ID, PassauthConfiguration, User } from "../../src/auth/auth.types.js";
+import { ID, PassauthConfiguration, User } from "../../src/auth/types/auth.types.js";
 import {
   PassauthInvalidCredentialsException,
   PassauthInvalidUserException,
   PassauthInvalidRefreshTokenException,
   PassauthInvalidAccessTokenException,
   PassauthBlockedUserException,
-} from "../../src/auth/auth.exceptions";
-import { AuthRepo } from "../../src/auth/auth.types.js";
-import { hash } from "../../src/auth/auth.utils.js";
+} from "../../src/auth/exceptions/auth.exceptions";
+import { AuthRepo } from "../../src/auth/types/auth.types.js";
+import { hash } from "../../src/auth/utils/auth.utils.js";
 import {
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_SALTING_ROUNDS,
-} from "../../src/auth/auth.constants.js";
+} from "../../src/auth/constants/auth.constants.js";
 
 const userData = {
   id: 1,

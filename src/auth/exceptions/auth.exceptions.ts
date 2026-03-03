@@ -13,10 +13,17 @@ export class PassauthException extends Error {
   }
 }
 
+export enum PassauthExceptionContext {
+  REGISTER = "register",
+  CONFIG = "config",
+  LOGIN = "login",
+  EMAIL_CONFIRMATION = "email confirmation",
+}
+
 export class PassauthMissingConfigurationException extends PassauthException {
   constructor(key: string) {
     super(
-      "config",
+      PassauthExceptionContext.CONFIG,
       "MissingConfiguration",
       `Passauth exception: ${key} option is required`,
     );
@@ -25,36 +32,36 @@ export class PassauthMissingConfigurationException extends PassauthException {
 
 export class PassauthEmailAlreadyTakenException extends PassauthException {
   constructor() {
-    super("register", "EmailAlreadyTaken", "Email already taken");
+    super(PassauthExceptionContext.REGISTER, "EmailAlreadyTaken", "Email already taken");
   }
 }
 
 export class PassauthInvalidUserException extends PassauthException {
   constructor(data: string) {
-    super("login", "InvalidUser", `Invalid user: ${data}`);
+    super(PassauthExceptionContext.LOGIN, "InvalidUser", `Invalid user: ${data}`);
   }
 }
 
 export class PassauthBlockedUserException extends PassauthException {
   constructor(email: string) {
-    super("login", "BlockedUser", `User is blocked: ${email}`);
+    super(PassauthExceptionContext.LOGIN, "BlockedUser", `User is blocked: ${email}`);
   }
 }
 
 export class PassauthInvalidCredentialsException extends PassauthException {
   constructor() {
-    super("login", "InvalidCredentials", "Invalid email or password");
+    super(PassauthExceptionContext.LOGIN, "InvalidCredentials", "Invalid email or password");
   }
 }
 
 export class PassauthInvalidAccessTokenException extends PassauthException {
   constructor() {
-    super("login", "InvalidAccessToken", "Invalid access token");
+    super(PassauthExceptionContext.LOGIN, "InvalidAccessToken", "Invalid access token");
   }
 }
 
 export class PassauthInvalidRefreshTokenException extends PassauthException {
   constructor() {
-    super("login", "InvalidRefreshToken", "Invalid refresh token");
+    super(PassauthExceptionContext.LOGIN, "InvalidRefreshToken", "Invalid refresh token");
   }
 }

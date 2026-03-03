@@ -5,12 +5,17 @@ import {
   PassauthEmailAlreadyTakenException,
   PassauthInvalidAccessTokenException,
   PassauthBlockedUserException,
-} from "./auth.exceptions";
+  PassauthExceptionContext,
+} from "../exceptions/auth.exceptions";
+import {
+  PassauthEmailFailedToSendEmailException,
+  PassauthEmailNotVerifiedException,
+} from "../exceptions/email.exceptions";
 import {
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
   DEFAULT_SALTING_ROUNDS,
-} from "./auth.constants";
+} from "../constants/auth.constants";
 import type {
   AuthRepo,
   HandlerOptions,
@@ -19,7 +24,7 @@ import type {
   PassauthHandler,
   RegisterParams,
   User,
-} from "./auth.types";
+} from "../types/auth.types";
 import {
   decodeAccessToken,
   verifyAccessToken,
@@ -27,9 +32,12 @@ import {
   generateRefreshToken,
   hash,
   compareHash,
-} from "./auth.utils";
+} from "../utils/auth.utils";
+import { EmailHandler } from "./email.handler";
 
 export class AuthHandler<U extends User> implements PassauthHandler<U> {
+  private emailHandler: EmailHandler | undefined;
+
   private refreshTokensLocalChaching: {
     [userId: ID]: {
       token: string;
@@ -47,7 +55,7 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
   public _name = "Passauth";
 
   constructor(
-    options: HandlerOptions,
+    private options: HandlerOptions,
     public repo: AuthRepo<U>,
   ) {
     this.config = {
@@ -66,6 +74,12 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
       hashRefreshToken: typeof this.hashRefreshToken,
       compareRefeshToken: typeof this.compareRefeshToken,
     };
+
+    if (options.email) {
+      this.emailHandler = new EmailHandler(options.email, {
+        saltingRounds: this.config.SALTING_ROUNDS,
+      });
+    }
   }
 
   async register(params: RegisterParams) {
@@ -82,6 +96,19 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
       password: await hash(params.password, this.config.SALTING_ROUNDS),
     });
 
+    if (params.email && this.emailHandler) {
+      const { success } = await this.emailHandler.sendConfirmPasswordEmail(
+        createdUser.email,
+      );
+
+      if (!success) {
+        throw new PassauthEmailFailedToSendEmailException(
+          PassauthExceptionContext.REGISTER,
+          params.email,
+        );
+      }
+    }
+
     return createdUser;
   }
 
@@ -94,6 +121,10 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
 
     if (user.isBlocked) {
       throw new PassauthBlockedUserException(params.email);
+    }
+
+    if (this.emailHandler && !user.emailVerified) {
+      throw new PassauthEmailNotVerifiedException(params.email);
     }
 
     const isValidPassword = await compareHash(params.password, user.password);

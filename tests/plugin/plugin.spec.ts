@@ -12,11 +12,11 @@ import {
   LoginParams,
   PassauthHandlerInt,
   User,
-} from "../../src/auth/auth.types.js";
+} from "../../src/auth/types/auth.types.js";
 
-import { AuthRepo } from "../../src/auth/auth.types.js";
-import { hash } from "../../src/auth/auth.utils.js";
-import { DEFAULT_SALTING_ROUNDS } from "../../src/auth/auth.constants.js";
+import { AuthRepo } from "../../src/auth/types/auth.types.js";
+import { hash } from "../../src/auth/utils/auth.utils.js";
+import { DEFAULT_SALTING_ROUNDS } from "../../src/auth/constants/auth.constants.js";
 
 const userData = {
   id: 1,

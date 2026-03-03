@@ -1,9 +1,9 @@
 import bcrypt from "bcrypt";
 import { describe, it, expect, jest, beforeEach, test } from "@jest/globals";
 import { Passauth } from "../../src/index.js";
-import { User } from "../../src/auth/auth.types.js";
-import { PassauthEmailAlreadyTakenException } from "../../src/auth/auth.exceptions.js";
-import { AuthRepo } from "../../src/auth/auth.types.js";
+import { User } from "../../src/auth/types/auth.types.js";
+import { PassauthEmailAlreadyTakenException } from "../../src/auth/exceptions/auth.exceptions.js";
+import { AuthRepo } from "../../src/auth/types/auth.types.js";
 
 const repoMock: AuthRepo<User> = {
   getUser: async (_email) => null,
@@ -12,6 +12,8 @@ const repoMock: AuthRepo<User> = {
       id: 1,
       email: "user@email.com",
       password: "password123",
+      isBlocked: false,
+      emailVerified: false,
     };
   },
 };
@@ -36,6 +38,8 @@ describe("Passauth:Register - Configuration: minimal", () => {
           id: 1,
           email: "user@email.com",
           password: "password123",
+          isBlocked: false,
+          emailVerified: false,
         }),
       ),
     );

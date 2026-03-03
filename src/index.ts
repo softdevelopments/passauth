@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AuthHandler } from "./auth/auth.handler";
-import { PassauthMissingConfigurationException } from "./auth/auth.exceptions";
+import { AuthHandler } from "./auth/handlers/auth.handler";
+import { PassauthMissingConfigurationException } from "./auth/exceptions/auth.exceptions";
 import type {
   PassauthConfiguration,
   PassauthHandler,
   PassauthHandlerInt,
   User,
-} from "./auth/auth.types";
+} from "./auth/types/auth.types";
 import {
   ComposeAug,
   PluginSpec,

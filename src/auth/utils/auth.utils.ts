@@ -3,8 +3,8 @@ import jwt from "jsonwebtoken";
 import { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-import type { ID } from "./auth.types";
-import { PassauthInvalidAccessTokenException } from "./auth.exceptions";
+import type { ID } from "../types";
+import { PassauthInvalidAccessTokenException } from "../exceptions/auth.exceptions";
 
 export type AuthJwtPayload<Data> = JwtPayload & {
   sub: ID;
@@ -64,4 +64,8 @@ export const verifyAccessToken = <D>(token: string, secretKey: string) => {
 
 export const decodeAccessToken = <D>(token: string) => {
   return jwt.decode(token) as AuthJwtPayload<D>;
+};
+
+export const generateToken = () => {
+  return crypto.randomBytes(16).toString("hex");
 };

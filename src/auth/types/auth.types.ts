@@ -1,4 +1,5 @@
-import { AuthJwtPayload } from "./auth.utils";
+import { AuthJwtPayload } from "../utils/auth.utils";
+import { EmailHandlerOptions } from "../types/email.types";
 
 export type ID = string | number;
 
@@ -7,6 +8,7 @@ export type User = {
   email: string;
   password: string;
   isBlocked: boolean;
+  emailVerified: boolean
 };
 
 export type RegisterParams = {
@@ -36,9 +38,10 @@ export type HandlerOptions = {
   saltingRounds?: number;
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
+  email?: EmailHandlerOptions;
 };
 
-export type PassauthConfiguration<U extends User, P> = HandlerOptions & {
+export type PassauthConfiguration<U extends User, P = undefined> = HandlerOptions & {
   repo: AuthRepo<U>;
   plugins?: P;
 };
