@@ -1,0 +1,20 @@
+import type { PassauthConfiguration, PassauthHandler, User } from "../auth/interfaces/auth.types.js";
+export type Plugins = Record<string, any>;
+export type SharedComponents<U extends User> = {
+    passauthHandler: PassauthHandler<U>;
+    passauthOptions: PassauthConfiguration<U, any>;
+    plugins: Plugins;
+};
+export type PluginSpec<U extends User, H, A> = {
+    name: string;
+    handlerInit: (components: SharedComponents<U>) => void;
+    __types?: (h: H) => H & A;
+};
+export type Override<A, B> = Omit<A, keyof B> & B;
+export type ApplyAug<H, P> = P extends {
+    __types?: (h: infer HH) => infer A;
+} ? HH extends H ? Override<H, A> : H : H;
+export type ComposeAug<H, L extends readonly unknown[]> = L extends readonly [
+    infer Head,
+    ...infer Tail
+] ? ComposeAug<ApplyAug<H, Head>, Tail> : H;
