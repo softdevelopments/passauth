@@ -1,16 +1,16 @@
 import crypto from "crypto";
+import { Passauth } from "../../src";
 import {
-  Passauth,
   PassauthInvalidAccessTokenException,
   PassauthInvalidRefreshTokenException,
-} from "passauth";
-import { hash } from "passauth/auth/utils";
+} from "../../src/auth/exceptions";
+import { hash } from "../../src/auth/utils/auth.utils";
 import {
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
   DEFAULT_SALTING_ROUNDS,
-} from "passauth/auth/constants";
-import type { AuthRepo } from "passauth/auth/interfaces";
+} from "../../src/auth/constants/auth.constants";
+import type { AuthRepo } from "../../src/auth/types/auth.types";
 import {
   describe,
   test,
@@ -21,11 +21,10 @@ import {
 } from "@jest/globals";
 import {
   type EmailClient,
-  type EmailPluginOptions,
+  type EmailHandlerOptions,
   type SendEmailArgs,
-  type UserPluginEmailSender,
-} from "../../src/interfaces/types";
-import { EmailSenderPlugin } from "../../src";
+} from "../../src/auth/types/email.types";
+import { User} from "../../src/auth/types/auth.types";
 
 const userData = {
   id: 1,
@@ -35,7 +34,7 @@ const userData = {
   isBlocked: false,
 };
 
-const repoMock: AuthRepo<UserPluginEmailSender> = {
+const repoMock: AuthRepo<User> = {
   getUser: async (_email) => ({
     ...userData,
     password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
@@ -50,7 +49,7 @@ describe("Passauth:Login", () => {
 
   const emailClient = new MockEmailClient();
 
-  const emailPluginConfig: EmailPluginOptions = {
+  const emailHandlerConfig: EmailHandlerOptions = {
     senderName: "Sender Name",
     senderEmail: "sender@example.com",
     client: emailClient,
@@ -69,7 +68,7 @@ describe("Passauth:Login", () => {
   const passauthConfig = {
     secretKey: "secretKey",
     repo: repoMock,
-    plugins: [EmailSenderPlugin(emailPluginConfig)] as const,
+    email: emailHandlerConfig
   };
 
   beforeAll(() => {

@@ -3,7 +3,7 @@ import type {
   PassauthConfiguration,
   PassauthHandler,
   User,
-} from "../auth/auth.types";
+} from "../auth/types/auth.types";
 
 export type Plugins = Record<string, any>;
 

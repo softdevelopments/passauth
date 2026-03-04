@@ -12,21 +12,44 @@ import {
   PluginSpec,
   SharedComponents,
 } from "./plugin/plugin.types";
+import { PassauthEmailMissingConfigurationException } from "./auth/exceptions";
+import { EmailHandlerOptions } from "./auth/types";
 
 export * from "./auth/index";
 export * from "./plugin/index";
+
+const validateEmailOptions = (options: EmailHandlerOptions) => {
+  if (!options.senderName) {
+    throw new PassauthEmailMissingConfigurationException("senderName");
+  }
+  if (!options.senderEmail) {
+    throw new PassauthEmailMissingConfigurationException("senderEmail");
+  }
+  if (!options.client) {
+    throw new PassauthEmailMissingConfigurationException("client");
+  }
+  if (!options.services) {
+    throw new PassauthEmailMissingConfigurationException("services");
+  }
+  if (!options.repo) {
+    throw new PassauthEmailMissingConfigurationException("repo");
+  }
+};
 
 export const Passauth = <
   U extends User,
   P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[],
 >(
-  options: PassauthConfiguration<U, P>
+  options: PassauthConfiguration<U, P>,
 ) => {
   if (!options.secretKey) {
     throw new PassauthMissingConfigurationException("secretKey");
   }
   if (!options.repo) {
     throw new PassauthMissingConfigurationException("repo");
+  }
+  if (options.email) {
+    validateEmailOptions(options.email);
   }
 
   const sharedComponents = {

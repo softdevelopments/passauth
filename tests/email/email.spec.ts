@@ -1,8 +1,6 @@
 /* eslint-disable no-async-promise-executor */
-import { Passauth } from "passauth";
-import { compareHash, hash } from "passauth/auth/utils";
-import { DEFAULT_SALTING_ROUNDS } from "passauth/auth/constants";
-import type { AuthRepo } from "passauth/auth/interfaces";
+import { Passauth } from "../../src";
+import { compareHash, hash } from "../../src/auth/utils/auth.utils";
 import {
   describe,
   test,
@@ -13,16 +11,16 @@ import {
 } from "@jest/globals";
 import {
   type EmailClient,
-  type EmailPluginOptions,
+  type EmailHandlerOptions,
   type SendEmailArgs,
-  type UserPluginEmailSender,
-} from "../../src/interfaces/types";
+} from "../../src/auth/types/email.types";
+import { User, AuthRepo } from "../../src/auth/types/auth.types";
 import {
   PassauthEmailFailedToSendEmailException,
-  PassauthEmailInvalidConfirmEmailTokenException,
+  PassauthInvalidConfirmEmailTokenException,
   PassauthEmailNotVerifiedException,
-} from "../../src/exceptions";
-import { EmailSenderPlugin } from "../../src";
+} from "../../src/auth/exceptions";
+import { DEFAULT_SALTING_ROUNDS } from "../../src";
 
 const userData = {
   id: 1,
@@ -32,7 +30,7 @@ const userData = {
   isBlocked: false,
 };
 
-const repoMock: AuthRepo<UserPluginEmailSender> = {
+const repoMock: AuthRepo<User> = {
   getUser: async (_email) => ({
     ...userData,
     password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
@@ -47,7 +45,7 @@ describe("Email Plugin:Login", () => {
 
   const emailClient = new MockEmailClient();
 
-  const emailPluginConfig: EmailPluginOptions = {
+  const emailHandlerConfig: EmailHandlerOptions = {
     senderName: "Sender Name",
     senderEmail: "sender@example.com",
     client: emailClient,
@@ -66,7 +64,7 @@ describe("Email Plugin:Login", () => {
   const passauthConfig = {
     secretKey: "secretKey",
     repo: repoMock,
-    plugins: [EmailSenderPlugin(emailPluginConfig)] as const,
+    email: emailHandlerConfig,
   };
 
   beforeAll(() => {
@@ -152,8 +150,8 @@ describe("Email Plugin:Login", () => {
 
     expect(emailSenderSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        senderName: emailPluginConfig.senderName,
-        from: emailPluginConfig.senderEmail,
+        senderName: emailHandlerConfig.senderName,
+        from: emailHandlerConfig.senderEmail,
         to: [userData.email],
         subject: "Confirm your email",
         text: expect.any(String),
@@ -191,7 +189,7 @@ describe("Email Plugin:Login", () => {
 
     await expect(
       sut.confirmEmail(userData.email, "invalid-token"),
-    ).rejects.toThrow(PassauthEmailInvalidConfirmEmailTokenException);
+    ).rejects.toThrow(PassauthInvalidConfirmEmailTokenException);
   });
 
   test("confirmEmail - Should call repo.confirmEmail with correct params", async () => {
@@ -199,11 +197,11 @@ describe("Email Plugin:Login", () => {
     const sut = passauth.handler;
 
     const confirmEmailSpy = jest.spyOn(
-      emailPluginConfig.services,
+      emailHandlerConfig.services,
       "createConfirmEmailLink",
     );
     const repoConfirmEmailSpy = jest.spyOn(
-      emailPluginConfig.repo,
+      emailHandlerConfig.repo,
       "confirmEmail",
     );
 
@@ -221,7 +219,7 @@ describe("Email Plugin:Login", () => {
     const sut = passauth.handler;
 
     const confirmEmailSpy = jest.spyOn(
-      emailPluginConfig.services,
+      emailHandlerConfig.services,
       "createConfirmEmailLink",
     );
 
@@ -232,7 +230,7 @@ describe("Email Plugin:Login", () => {
     await sut.confirmEmail(userData.email, token);
 
     await expect(sut.confirmEmail(userData.email, token)).rejects.toThrow(
-      PassauthEmailInvalidConfirmEmailTokenException,
+      PassauthInvalidConfirmEmailTokenException,
     );
   });
 
@@ -249,8 +247,8 @@ describe("Email Plugin:Login", () => {
 
     expect(emailSenderSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        senderName: emailPluginConfig.senderName,
-        from: emailPluginConfig.senderEmail,
+        senderName: emailHandlerConfig.senderName,
+        from: emailHandlerConfig.senderEmail,
         to: [userData.email],
         subject: "Reset Password",
         text: expect.any(String),
@@ -294,11 +292,11 @@ describe("Email Plugin:Login", () => {
     const sut = passauth.handler;
 
     const resetPasswordSpy = jest.spyOn(
-      emailPluginConfig.services,
+      emailHandlerConfig.services,
       "createResetPasswordLink",
     );
     const repoResetPasswordSpy = jest.spyOn(
-      emailPluginConfig.repo,
+      emailHandlerConfig.repo,
       "resetPassword",
     );
     await sut.sendResetPasswordEmail(userData.email);
@@ -330,7 +328,7 @@ describe("Email Plugin:Register", () => {
 
   const emailClient = new MockEmailClient();
 
-  const emailPluginConfig: EmailPluginOptions = {
+  const emailHandlerConfig: EmailHandlerOptions = {
     senderName: "Sender Name",
     senderEmail: "sender@example.com",
     client: emailClient,
@@ -349,7 +347,7 @@ describe("Email Plugin:Register", () => {
   const passauthConfig = {
     secretKey: "secretKey",
     repo: repoMock,
-    plugins: [EmailSenderPlugin(emailPluginConfig)] as const,
+    email: emailHandlerConfig
   };
 
   const userData = {
@@ -399,8 +397,8 @@ describe("Email Plugin:Register", () => {
 
     expect(emailSenderSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        senderName: emailPluginConfig.senderName,
-        from: emailPluginConfig.senderEmail,
+        senderName: emailHandlerConfig.senderName,
+        from: emailHandlerConfig.senderEmail,
         to: [userData.email],
         subject: "Confirm your email",
         text: expect.any(String),

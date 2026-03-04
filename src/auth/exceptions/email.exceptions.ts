@@ -1,6 +1,6 @@
 import { PassauthException, PassauthExceptionContext } from "./auth.exceptions";
 
-export class PassauthEmailPluginMissingConfigurationException extends PassauthException {
+export class PassauthEmailMissingConfigurationException extends PassauthException {
   constructor(key: string) {
     super(
       PassauthExceptionContext.CONFIG,

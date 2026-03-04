@@ -112,6 +112,38 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     return createdUser;
   }
 
+  async sendResetPasswordEmail(email: string) {
+    if (!this.emailHandler) {
+      return { success: false };
+    }
+
+    return this.emailHandler.sendResetPasswordEmail(email);
+  }
+
+  async sendConfirmPasswordEmail(email: string) {
+    if (!this.emailHandler) {
+      return { success: false };
+    }
+
+    return this.emailHandler.sendConfirmPasswordEmail(email);
+  }
+
+  async confirmEmail(email: string, token: string) {
+    if (!this.emailHandler) {
+      throw new Error("Email handler not configured");
+    }
+
+    return this.emailHandler.confirmEmail(email, token);
+  }
+
+  async confirmResetPassword(email: string, token: string, password: string) {
+    if (!this.emailHandler) {
+      return { success: false };
+    }
+
+    return this.emailHandler.confirmResetPassword(email, token, password);
+  }
+
   async login(params: LoginParams, jwtUserFields?: Array<keyof U>) {
     const user = await this.repo.getUser({ email: params.email } as Partial<U>);
 

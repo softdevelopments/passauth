@@ -1,38 +1,39 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { Passauth } from "../../src";
 import {
-  describe,
-  it,
-  test,
-  expect,
-  beforeEach,
-  jest,
-  beforeAll,
-} from "@jest/globals";
-import type { AuthRepo } from "passauth/auth/interfaces";
-import { Passauth } from "passauth";
-import { hash } from "passauth/auth/utils";
-import { DEFAULT_SALTING_ROUNDS } from "passauth/auth/constants";
-import { EmailSenderPlugin } from "../../src";
+  PassauthConfiguration,
+  User,
+  AuthRepo,
+} from "../../src/auth/types/auth.types";
+import { TemplateTypes } from "../../src/auth/email.enum";
 import {
-  PassauthEmailInvalidConfirmEmailTokenException,
-  PassauthEmailPluginMissingConfigurationException,
-} from "../../src/exceptions";
-import { EmailPlugin } from "../../src/handlers";
-import {
-  type EmailClient,
-  type EmailPluginOptions,
-  type SendEmailArgs,
-  type UserPluginEmailSender,
-} from "../../src/interfaces/types";
-import { EMAIL_SENDER_PLUGIN } from "../../src/constants";
-import { TemplateTypes } from "../../src/interfaces/enum";
+  EmailClient,
+  EmailHandlerOptions,
+  SendEmailArgs,
+} from "../../src/auth/types";
+import { PassauthEmailMissingConfigurationException, PassauthInvalidConfirmEmailTokenException } from "../../src/auth/exceptions";
 
-const userData = {
-  id: 1,
-  email: "user@email.com",
-  password: "password123",
-  emailVerified: true,
-  isBlocked: false,
+
+const repoMock: AuthRepo<User> = {
+  getUser: async (_email) => null,
+  createUser: async (_params) => {
+    return {
+      id: 1,
+      email: "user@email.com",
+      password: "password123",
+      isBlocked: false,
+      emailVerified: false,
+    };
+  },
+};
+
+const passauthConfig: PassauthConfiguration<User> = {
+  secretKey: "secretKey",
+  saltingRounds: 4,
+  accessTokenExpirationMs: 1000 * 60,
+  refreshTokenExpirationMs: 1000 * 60 * 15,
+  repo: repoMock,
 };
 
 class MockEmailClient implements EmailClient {
@@ -41,7 +42,7 @@ class MockEmailClient implements EmailClient {
 
 const emailClient = new MockEmailClient();
 
-const emailPluginConfig: EmailPluginOptions = {
+const emailConfig: EmailHandlerOptions = {
   senderName: "Sender Name",
   senderEmail: "sender@example.com",
   client: emailClient,
@@ -57,117 +58,94 @@ const emailPluginConfig: EmailPluginOptions = {
   },
 };
 
-const repoMock: AuthRepo<UserPluginEmailSender> = {
-  getUser: async (_email) => ({
-    ...userData,
-    password: await hash(userData.password, DEFAULT_SALTING_ROUNDS),
-  }),
-  createUser: async (_params) => userData,
+const userData = {
+  id: 1,
+  email: "user@email.com",
+  password: "password123",
+  emailVerified: true,
+  isBlocked: false,
 };
 
-const passauthConfig = {
-  secretKey: "secretKey",
-  repo: repoMock,
-  plugins: [EmailSenderPlugin(emailPluginConfig)] as const,
-};
-
-describe("Email Sender Plugin - Configuration", () => {
-  it("Should throw error if required option is not provided", () => {
+describe("Email Sender - Configuration", () => {
+  test("Should throw error if required option is not provided", () => {
     // Option senderName
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        {
-          ...emailPluginConfig,
-          senderName: undefined,
-        } as any,
-      ),
-    ).toThrow(PassauthEmailPluginMissingConfigurationException);
-    expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, senderName: undefined } as any,
-      ),
-    ).toThrow("senderName option is required");
-
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, senderName: undefined },
+      } as any),
+    ).toThrow(PassauthEmailMissingConfigurationException);
     // Option senderEmail
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, senderEmail: undefined } as any,
-      ),
-    ).toThrow(PassauthEmailPluginMissingConfigurationException);
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, senderEmail: undefined },
+      } as any),
+    ).toThrow(PassauthEmailMissingConfigurationException);
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, senderEmail: undefined } as any,
-      ),
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, senderEmail: undefined },
+      } as any),
     ).toThrow("senderEmail option is required");
 
     // Option client
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, client: undefined } as any,
-      ),
-    ).toThrow(PassauthEmailPluginMissingConfigurationException);
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, client: undefined },
+      } as any),
+    ).toThrow(PassauthEmailMissingConfigurationException);
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, client: undefined } as any,
-      ),
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, client: undefined },
+      } as any),
     ).toThrow("client option is required");
 
-    // Option services
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, services: undefined } as any,
-      ),
-    ).toThrow(PassauthEmailPluginMissingConfigurationException);
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, services: undefined },
+      } as any),
+    ).toThrow(PassauthEmailMissingConfigurationException);
     expect(() =>
-      EmailPlugin(
-        { secretKey: passauthConfig.secretKey, repo: passauthConfig.repo },
-        repoMock,
-        { ...emailPluginConfig, services: undefined } as any,
-      ),
+      Passauth({
+        ...passauthConfig,
+        email: { ...emailConfig, services: undefined },
+      } as any),
     ).toThrow("services option is required");
   });
 
-  it("Should init correctly if only minimun config is provided", () => {
-    const { name } = EmailSenderPlugin(emailPluginConfig);
+  test("Should init correctly if only minimum config is provided", () => {
+    const passauth = Passauth({
+      ...passauthConfig,
+      email: emailConfig,
+    } as any);
 
-    expect(name).toBe(EMAIL_SENDER_PLUGIN);
+    expect(passauth).toBeDefined();
+    expect(passauth.handler).toBeDefined();
   });
 });
 
-describe("Email Plugin:Options:Templates", () => {
+describe("Email:Options:Templates", () => {
   const passauthConfig = {
     secretKey: "secretKey",
     repo: repoMock,
-    plugins: [
-      EmailSenderPlugin({
-        ...emailPluginConfig,
-        templates: {
-          [TemplateTypes.CONFIRM_EMAIL]: (params) => ({
-            text: `This is the confirm email template for email: ${params.email}, link: ${params.link}`,
-            html: `This is the confirm email template for email: ${params.email}, <a href="${params.link}">link</a>`,
-          }),
-          [TemplateTypes.RESET_PASSWORD]: (params) => ({
-            text: `This is the reset password template for email: ${params.email}, link: ${params.link}`,
-            html: `This is the reset password template for email: ${params.email}, <a href="${params.link}">link</a>`,
-          }),
-        },
-      }),
-    ] as const,
-  };
+    email: {
+      ...emailConfig,
+      templates: {
+        [TemplateTypes.CONFIRM_EMAIL]: (params) => ({
+          text: `This is the confirm email template for email: ${params.email}, link: ${params.link}`,
+          html: `This is the confirm email template for email: ${params.email}, <a href="${params.link}">link</a>`,
+        }),
+        [TemplateTypes.RESET_PASSWORD]: (params) => ({
+          text: `This is the reset password template for email: ${params.email}, link: ${params.link}`,
+          html: `This is the reset password template for email: ${params.email}, <a href="${params.link}">link</a>`,
+        }),
+      },
+    },
+  } as PassauthConfiguration<User>;
 
   beforeEach(() => {
     jest.restoreAllMocks();
@@ -224,8 +202,8 @@ describe("Email Plugin:Options:Templates", () => {
   });
 });
 
-describe("Email Plugin:Options:emailConfig override", () => {
-  const repoMock: AuthRepo<UserPluginEmailSender> = {
+describe("Email:Options:emailConfig override", () => {
+  const repoMock: AuthRepo<User> = {
     getUser: async (_email) => null,
     createUser: async (_params) => userData,
   };
@@ -247,21 +225,19 @@ describe("Email Plugin:Options:emailConfig override", () => {
   test("Confirm Email - should override email params", async () => {
     const passauth = Passauth({
       ...passauthConfig,
-      plugins: [
-        EmailSenderPlugin({
-          ...emailPluginConfig,
-          emailConfig: {
-            [TemplateTypes.CONFIRM_EMAIL]: {
-              email: {
-                from: "overridden@mysite.com",
-                senderName: "Overridden Name",
-                subject: "Overridden Subject - Confirm Email",
-              },
-              linkExpirationMs: 1000 * 60 * 15,
+      email: {
+        ...emailConfig,
+        emailConfig: {
+          [TemplateTypes.CONFIRM_EMAIL]: {
+            email: {
+              from: "overridden@mysite.com",
+              senderName: "Overridden Name",
+              subject: "Overridden Subject - Confirm Email",
             },
+            linkExpirationMs: 1000 * 60 * 15,
           },
-        }),
-      ],
+        },
+      },
     });
     const sut = passauth.handler;
 
@@ -283,21 +259,19 @@ describe("Email Plugin:Options:emailConfig override", () => {
   test("Confirm Email - should allow overriding the link expiration time", async () => {
     const passauth = Passauth({
       ...passauthConfig,
-      plugins: [
-        EmailSenderPlugin({
-          ...emailPluginConfig,
-          emailConfig: {
-            [TemplateTypes.CONFIRM_EMAIL]: {
-              linkExpirationMs: 1000 * 60 * 15,
-            },
+      email: {
+        ...emailConfig,
+        emailConfig: {
+          [TemplateTypes.CONFIRM_EMAIL]: {
+            linkExpirationMs: 1000 * 60 * 15,
           },
-        }),
-      ] as const,
+        },
+      },
     });
     const sut = passauth.handler;
 
     const createConfirmEmailLinkSpy = jest.spyOn(
-      emailPluginConfig.services,
+      emailConfig.services,
       "createConfirmEmailLink",
     );
     await sut.register(userData);
@@ -307,28 +281,26 @@ describe("Email Plugin:Options:emailConfig override", () => {
     jest.advanceTimersByTime(1000 * 60 * 17);
 
     await expect(sut.confirmEmail(userData.email, token)).rejects.toThrow(
-      PassauthEmailInvalidConfirmEmailTokenException,
+      PassauthInvalidConfirmEmailTokenException,
     );
   });
 
   test("Reset Password - should override email params", async () => {
     const passauth = Passauth({
       ...passauthConfig,
-      plugins: [
-        EmailSenderPlugin({
-          ...emailPluginConfig,
-          emailConfig: {
-            [TemplateTypes.RESET_PASSWORD]: {
-              email: {
-                from: "overridden-reset@mysite.com",
-                senderName: "Overridden Name - Reset",
-                subject: "Overridden Subject - Reset Password",
-              },
-              linkExpirationMs: 1000 * 60 * 15,
+      email: {
+        ...emailConfig,
+        emailConfig: {
+          [TemplateTypes.RESET_PASSWORD]: {
+            email: {
+              from: "overridden-reset@mysite.com",
+              senderName: "Overridden Name - Reset",
+              subject: "Overridden Subject - Reset Password",
             },
+            linkExpirationMs: 1000 * 60 * 15,
           },
-        }),
-      ] as const,
+        },
+      },
     });
     const sut = passauth.handler;
 
@@ -350,21 +322,19 @@ describe("Email Plugin:Options:emailConfig override", () => {
   test("Reset Password - should allow overriding the link expiration time", async () => {
     const passauth = Passauth({
       ...passauthConfig,
-      plugins: [
-        EmailSenderPlugin({
-          ...emailPluginConfig,
-          emailConfig: {
-            [TemplateTypes.RESET_PASSWORD]: {
-              linkExpirationMs: 1000 * 60 * 15,
-            },
+      email: {
+        ...emailConfig,
+        emailConfig: {
+          [TemplateTypes.RESET_PASSWORD]: {
+            linkExpirationMs: 1000 * 60 * 15,
           },
-        }),
-      ] as const,
+        },
+      },
     });
     const sut = passauth.handler;
 
     const createResetPasswordLinkSpy = jest.spyOn(
-      emailPluginConfig.services,
+      emailConfig.services,
       "createResetPasswordLink",
     );
 

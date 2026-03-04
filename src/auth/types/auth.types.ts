@@ -65,6 +65,14 @@ export interface PassauthHandler<U extends User> {
   ): Promise<AuthTokensResponse>;
   revokeRefreshToken(userId: ID): Promise<void>;
   generateTokens<D>(userId: ID, data?: D): Promise<AuthTokensResponse>;
+  sendResetPasswordEmail(email: string): Promise<{ success: boolean; error?: unknown }>;
+  confirmResetPassword(
+    email: string,
+    token: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: unknown }>;
+  confirmEmail(email: string, token: string): Promise<void>;
+  sendConfirmPasswordEmail(email: string): Promise<{ success: boolean; error?: unknown }>;
 }
 
 export type PassauthHandlerConfig = {
