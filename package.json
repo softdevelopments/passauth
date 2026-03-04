@@ -46,7 +46,8 @@
     "build": "tsc && tsc-esm-fix",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint --fix && prettier --write .",
-    "prepublishOnly": "tsc && tsc-esm-fix"
+    "prepublishOnly": "tsc && tsc-esm-fix",
+    "commit": "tsc && tsc-esm-fix && git add . && git commit -m"
   },
   "keywords": [],
   "author": "",
