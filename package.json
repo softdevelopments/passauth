@@ -10,28 +10,28 @@
       "types": "./dist/index.d.ts"
     },
     "./auth": {
-      "import": "./dist/auth/auth.handler.js",
-      "types": "./dist/auth/auth.handler.d.ts"
+      "import": "./dist/auth/index.js",
+      "types": "./dist/auth/index.d.ts"
     },
     "./auth/interfaces": {
-      "import": "./dist/auth/auth.types.js",
-      "types": "./dist/auth/auth.types.d.ts"
+      "import": "./dist/auth/types/index.js",
+      "types": "./dist/auth/types/index.d.ts"
     },
     "./auth/constants": {
-      "import": "./dist/auth/auth.constants.js",
-      "types": "./dist/auth/auth.constants.d.ts"
+      "import": "./dist/auth/constants/index.js",
+      "types": "./dist/auth/constants/index.d.ts"
     },
     "./auth/exceptions": {
-      "import": "./dist/auth/auth.exceptions.js",
-      "types": "./dist/auth/auth.exceptions.d.ts"
+      "import": "./dist/auth/exceptions/index.js",
+      "types": "./dist/auth/exceptions/index.d.ts"
     },
     "./auth/utils": {
-      "import": "./dist/auth/auth.utils.js",
-      "types": "./dist/auth/auth.utils.d.ts"
+      "import": "./dist/auth/utils/index.js",
+      "types": "./dist/auth/utils/index.d.ts"
     },
     "./plugin": {
-      "import": "./dist/plugin/plugin.handler.js",
-      "types": "./dist/plugin/plugin.handler.d.ts"
+      "import": "./dist/plugin/index.js",
+      "types": "./dist/plugin/index.d.ts"
     },
     "./plugin/interfaces": {
       "import": "./dist/plugin/plugin.types.js",
