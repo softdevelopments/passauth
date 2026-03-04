@@ -9,7 +9,7 @@ import {
   beforeAll,
 } from "@jest/globals";
 import { Passauth } from "../../src";
-import { ID, PassauthConfiguration, User } from "../../src/auth/types/auth.types.js";
+import { ID, PassauthConfiguration, User } from "../../src/auth/interfaces";
 import {
   PassauthInvalidCredentialsException,
   PassauthInvalidUserException,
@@ -17,13 +17,13 @@ import {
   PassauthInvalidAccessTokenException,
   PassauthBlockedUserException,
 } from "../../src/auth/exceptions/auth.exceptions";
-import { AuthRepo } from "../../src/auth/types/auth.types.js";
-import { hash } from "../../src/auth/utils/auth.utils.js";
+import { AuthRepo } from "../../src/auth/interfaces";
+import { hash } from "../../src/auth/utils/auth.utils";
 import {
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_SALTING_ROUNDS,
-} from "../../src/auth/constants/auth.constants.js";
+} from "../../src/auth/constants/auth.constants";
 
 const userData = {
   id: 1,
@@ -226,7 +226,7 @@ describe("Passauth:Login - Configuration: minimal", () => {
         email: userData.email,
         password: userData.password,
       },
-      ["email"],
+      { jwtUserFields: ["email"] },
     );
 
     const decodedToken = passauth.handler.verifyAccessToken(
@@ -347,5 +347,92 @@ describe("Passauth:Login - Configuration: minimal", () => {
         loginResponse.refreshToken,
       ),
     ).rejects.toThrow(PassauthInvalidRefreshTokenException);
+  });
+});
+
+describe("Passauth:Login - Extended params", () => {
+  type MultiTenantUser = User & {
+    username: string;
+    tenantId: string;
+  };
+
+  const extendedUserData: MultiTenantUser = {
+    id: 10,
+    email: "tenant-user@email.com",
+    username: "tenant-user",
+    tenantId: "tenant-1",
+    password: "password123",
+    emailVerified: false,
+    isBlocked: false,
+  };
+
+  const repoMock: AuthRepo<MultiTenantUser> = {
+    getUser: async (params) => {
+      const hasValidCredentials =
+        params.email === extendedUserData.email &&
+        params.username === extendedUserData.username &&
+        params.tenantId === extendedUserData.tenantId;
+
+      if (!hasValidCredentials) {
+        return null;
+      }
+
+      return {
+        ...extendedUserData,
+        password: await hash(extendedUserData.password, DEFAULT_SALTING_ROUNDS),
+      };
+    },
+    createUser: async (_params) => extendedUserData,
+  };
+
+  const passauthConfig: PassauthConfiguration<MultiTenantUser> = {
+    secretKey: "secretKey",
+    repo: repoMock,
+  };
+
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllTimers();
+  });
+
+  test("Login - Should forward extended params to repo.getUser", async () => {
+    const passauth = Passauth(passauthConfig);
+    const getUserSpy = jest.spyOn(repoMock, "getUser");
+
+    await expect(
+      passauth.handler.login<{ username: string; tenantId: string }>({
+        email: extendedUserData.email,
+        password: extendedUserData.password,
+        username: extendedUserData.username,
+        tenantId: extendedUserData.tenantId,
+      }),
+    ).resolves.toEqual({
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+    });
+
+    expect(getUserSpy).toHaveBeenCalledWith({
+      email: extendedUserData.email,
+      password: extendedUserData.password,
+      username: extendedUserData.username,
+      tenantId: extendedUserData.tenantId,
+    });
+  });
+
+  test("Login - Should throw invalid user when extended params do not match", async () => {
+    const passauth = Passauth(passauthConfig);
+
+    await expect(
+      passauth.handler.login<{ username: string; tenantId: string }>({
+        email: extendedUserData.email,
+        password: extendedUserData.password,
+        username: extendedUserData.username,
+        tenantId: "tenant-2",
+      }),
+    ).rejects.toThrow(PassauthInvalidUserException);
   });
 });

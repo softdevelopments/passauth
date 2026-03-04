@@ -13,8 +13,8 @@ import {
   type EmailClient,
   type EmailHandlerOptions,
   type SendEmailArgs,
-} from "../../src/auth/types/email.types";
-import { User, AuthRepo } from "../../src/auth/types/auth.types";
+} from "../../src/auth/interfaces";
+import { User, AuthRepo } from "../../src/auth/interfaces";
 import {
   PassauthEmailFailedToSendEmailException,
   PassauthInvalidConfirmEmailTokenException,
@@ -124,7 +124,7 @@ describe("Email Plugin:Login", () => {
         email: userData.email,
         password: userData.password,
       },
-      ["email"],
+      { jwtUserFields: ["email"] },
     );
 
     const decodedToken = passauth.handler.verifyAccessToken(

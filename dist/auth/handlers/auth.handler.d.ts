@@ -19,7 +19,7 @@ export declare class AuthHandler<U extends User> implements PassauthHandler<U> {
     };
     _name: string;
     constructor(options: HandlerOptions, repo: AuthRepo<U>);
-    register(params: RegisterParams): Promise<U>;
+    register<T>(params: RegisterParams<T>): Promise<U>;
     sendResetPasswordEmail(email: string): Promise<{
         success: boolean;
         error: unknown;
@@ -36,7 +36,9 @@ export declare class AuthHandler<U extends User> implements PassauthHandler<U> {
     } | {
         success: boolean;
     }>;
-    login(params: LoginParams, jwtUserFields?: Array<keyof U>): Promise<{
+    login<T>(params: LoginParams<T>, config?: {
+        jwtUserFields?: Array<keyof U>;
+    }): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;

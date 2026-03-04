@@ -71,8 +71,8 @@ export class AuthHandler {
         }
         return this.emailHandler.confirmResetPassword(email, token, password);
     }
-    async login(params, jwtUserFields) {
-        const user = await this.repo.getUser({ email: params.email });
+    async login(params, config) {
+        const user = await this.repo.getUser(params);
         if (!user) {
             throw new PassauthInvalidUserException(params.email);
         }
@@ -86,8 +86,8 @@ export class AuthHandler {
         if (!isValidPassword) {
             throw new PassauthInvalidCredentialsException();
         }
-        const jwtData = jwtUserFields
-            ? jwtUserFields.reduce((params, userKey) => {
+        const jwtData = config?.jwtUserFields
+            ? config.jwtUserFields.reduce((params, userKey) => {
                 params[userKey] = user[userKey];
                 return params;
             }, {})

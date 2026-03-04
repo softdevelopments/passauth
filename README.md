@@ -157,7 +157,8 @@ type PassauthConfiguration<U extends User, P = undefined> = {
 You must implement:
 
 - `getUser(param: Partial<User>): Promise<User | null>`
-- `createUser(params: { email: string; password: string }): Promise<User>`
+- `createUser<P>(params: RegisterParams<P>): Promise<User>`
+  - `RegisterParams<P>` always includes `email` and `password`, and can include extra fields.
 
 Optional methods for persistent refresh token cache (recommended in production):
 
@@ -178,6 +179,7 @@ Creates a new user with a hashed password.
   - `params` (**required**) — `RegisterParams`
     - `email` (**required**) — `string`
     - `password` (**required**) — `string`
+    - Additional fields are supported (`register<T>(params: RegisterParams<T>)`) and forwarded to your `repo.createUser`.
 - **Returns**
   - `Promise<U>` — the created user entity returned by your repository.
 
@@ -188,6 +190,7 @@ Authenticates a user and returns access/refresh tokens.
   - `params` (**required**) — `LoginParams`
     - `email` (**required**) — `string`
     - `password` (**required**) — `string`
+    - Additional fields are supported (`login<T>(params: LoginParams<T>, ...)`) and forwarded to your `repo.getUser`.
   - `jwtUserFields` (**optional**) — `Array<keyof U>`
     - If provided, only these user fields are injected into token payload `data`.
 - **Returns**

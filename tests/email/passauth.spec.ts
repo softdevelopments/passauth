@@ -10,7 +10,7 @@ import {
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
   DEFAULT_SALTING_ROUNDS,
 } from "../../src/auth/constants/auth.constants";
-import type { AuthRepo } from "../../src/auth/types/auth.types";
+import type { AuthRepo } from "../../src/auth/interfaces";
 import {
   describe,
   test,
@@ -23,8 +23,8 @@ import {
   type EmailClient,
   type EmailHandlerOptions,
   type SendEmailArgs,
-} from "../../src/auth/types/email.types";
-import { User} from "../../src/auth/types/auth.types";
+} from "../../src/auth/interfaces";
+import { User } from "../../src/auth/interfaces";
 
 const userData = {
   id: 1,
@@ -68,7 +68,7 @@ describe("Passauth:Login", () => {
   const passauthConfig = {
     secretKey: "secretKey",
     repo: repoMock,
-    email: emailHandlerConfig
+    email: emailHandlerConfig,
   };
 
   beforeAll(() => {
@@ -104,7 +104,7 @@ describe("Passauth:Login", () => {
         email: userData.email,
         password: userData.password,
       },
-      ["email"],
+      { jwtUserFields: ["email"] },
     );
 
     const decodedToken = passauth.handler.verifyAccessToken(
