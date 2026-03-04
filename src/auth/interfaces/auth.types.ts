@@ -11,19 +11,19 @@ export type User = {
   emailVerified: boolean
 };
 
-export type RegisterParams = {
+export type RegisterParams<P = Record<string, never>> = {
   email: string;
   password: string;
-};
+} & P;
 
-export type LoginParams = {
+export type LoginParams<P> = {
   email: string;
   password: string;
-};
+} & P;
 
 export interface AuthRepo<T extends User> {
   getUser(param: Partial<T>): Promise<T | null>;
-  createUser(params: RegisterParams): Promise<T>;
+  createUser<P>(params: RegisterParams<P>): Promise<T>;
   getCachedToken?: (userId: ID) => Promise<string | undefined | null>;
   saveCachedToken?: (
     userId: ID,
@@ -53,10 +53,10 @@ type AuthTokensResponse = {
 
 export interface PassauthHandler<U extends User> {
   repo: AuthRepo<U>;
-  register(params: RegisterParams): Promise<U>;
-  login(
-    params: LoginParams,
-    jwtUserFields?: Array<keyof U>,
+  register<T>(params: RegisterParams<T>): Promise<U>;
+  login<T>(
+    params: LoginParams<T>,
+    config?: { jwtUserFields?: Array<keyof U> },
   ): Promise<AuthTokensResponse>;
   verifyAccessToken<D>(accessToken: string): AuthJwtPayload<D>;
   refreshToken(

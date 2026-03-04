@@ -82,7 +82,7 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     }
   }
 
-  async register(params: RegisterParams) {
+  async register<T>(params: RegisterParams<T>) {
     const existingUser = await this.repo.getUser({
       email: params.email,
     } as Partial<U>);
@@ -144,8 +144,11 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     return this.emailHandler.confirmResetPassword(email, token, password);
   }
 
-  async login(params: LoginParams, jwtUserFields?: Array<keyof U>) {
-    const user = await this.repo.getUser({ email: params.email } as Partial<U>);
+  async login<T>(
+    params: LoginParams<T>,
+    config?: { jwtUserFields?: Array<keyof U> },
+  ) {
+    const user = await this.repo.getUser(params as Partial<U>);
 
     if (!user) {
       throw new PassauthInvalidUserException(params.email);
@@ -165,8 +168,8 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
       throw new PassauthInvalidCredentialsException();
     }
 
-    const jwtData = jwtUserFields
-      ? jwtUserFields.reduce((params, userKey) => {
+    const jwtData = config?.jwtUserFields
+      ? config.jwtUserFields.reduce((params, userKey) => {
           params[userKey] = user[userKey];
 
           return params;

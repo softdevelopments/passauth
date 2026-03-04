@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from "@jest/globals";
 import { Passauth } from "../../src";
-import { PassauthConfiguration, User, AuthRepo } from "../../src/auth/types/auth.types";
-import { PassauthMissingConfigurationException } from "../../src/auth/exceptions/auth.exceptions";
+import { PassauthConfiguration, User, AuthRepo } from "../../src/auth/interfaces";
+import { PassauthMissingConfigurationException } from "../../src/auth/exceptions";
 
 const repoMock: AuthRepo<User> = {
   getUser: async (_email) => null,
