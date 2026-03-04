@@ -24,7 +24,7 @@ import type {
   PassauthHandler,
   RegisterParams,
   User,
-} from "../types/auth.types";
+} from "../interfaces";
 import {
   decodeAccessToken,
   verifyAccessToken,

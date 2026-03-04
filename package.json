@@ -14,8 +14,8 @@
       "types": "./dist/auth/index.d.ts"
     },
     "./auth/interfaces": {
-      "import": "./dist/auth/types/index.js",
-      "types": "./dist/auth/types/index.d.ts"
+      "import": "./dist/auth/interfaces/index.js",
+      "types": "./dist/auth/interfaces/index.d.ts"
     },
     "./auth/constants": {
       "import": "./dist/auth/constants/index.js",

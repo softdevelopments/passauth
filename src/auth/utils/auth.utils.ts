@@ -2,8 +2,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
-import type { ID } from "../types";
+import type { ID } from "../interfaces";
 import { PassauthInvalidAccessTokenException } from "../exceptions/auth.exceptions";
 
 export type AuthJwtPayload<Data> = JwtPayload & {

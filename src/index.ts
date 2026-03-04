@@ -1,19 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AuthHandler } from "./auth/handlers/auth.handler";
 import { PassauthMissingConfigurationException } from "./auth/exceptions/auth.exceptions";
-import type {
-  PassauthConfiguration,
-  PassauthHandler,
-  PassauthHandlerInt,
-  User,
-} from "./auth/types/auth.types";
 import {
   ComposeAug,
   PluginSpec,
   SharedComponents,
 } from "./plugin/plugin.types";
 import { PassauthEmailMissingConfigurationException } from "./auth/exceptions";
-import { EmailHandlerOptions } from "./auth/types";
+import type {
+  EmailHandlerOptions,
+  PassauthConfiguration,
+  PassauthHandler,
+  PassauthHandlerInt,
+  User,
+} from "./auth/interfaces";
 
 export * from "./auth/index";
 export * from "./plugin/index";

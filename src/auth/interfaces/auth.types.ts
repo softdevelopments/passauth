@@ -1,5 +1,5 @@
 import { AuthJwtPayload } from "../utils/auth.utils";
-import { EmailHandlerOptions } from "../types/email.types";
+import { EmailHandlerOptions } from "../interfaces/email.types";
 
 export type ID = string | number;
 

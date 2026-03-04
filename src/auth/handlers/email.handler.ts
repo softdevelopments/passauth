@@ -10,8 +10,8 @@ import {
 
 import { hash, generateToken } from "../utils/auth.utils";
 import { TemplateTypes } from "../email.enum";
-import { SendEmailArgs, TemplateArgs } from "../types/email.types";
-import { EmailHandlerOptions } from "../types/email.types";
+import { SendEmailArgs, TemplateArgs } from "../interfaces/email.types";
+import { EmailHandlerOptions } from "../interfaces/email.types";
 
 export class EmailHandler {
   private saltingRounds: number;
