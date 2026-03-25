@@ -18,11 +18,13 @@ import {
 } from "../constants/auth.constants";
 import type {
   AuthRepo,
+  ConfirmEmailParams,
   HandlerOptions,
   ID,
   LoginParams,
   PassauthHandler,
   RegisterParams,
+  ResetPasswordEmailParams,
   User,
 } from "../interfaces";
 import {
@@ -112,36 +114,49 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     return createdUser;
   }
 
-  async sendResetPasswordEmail(email: string) {
+  async sendResetPasswordEmail(
+    email: string,
+    emailParams?: ResetPasswordEmailParams,
+  ) {
     if (!this.emailHandler) {
       return { success: false };
     }
 
-    return this.emailHandler.sendResetPasswordEmail(email);
+    return this.emailHandler.sendResetPasswordEmail(email, emailParams);
   }
 
-  async sendConfirmPasswordEmail(email: string) {
+  async sendConfirmPasswordEmail(email: string, emailParams?: ConfirmEmailParams) {
     if (!this.emailHandler) {
       return { success: false };
     }
 
-    return this.emailHandler.sendConfirmPasswordEmail(email);
+    return this.emailHandler.sendConfirmPasswordEmail(email, emailParams);
   }
 
-  async confirmEmail(email: string, token: string) {
+  async confirmEmail(email: string, token: string, emailParams?: ConfirmEmailParams) {
     if (!this.emailHandler) {
       throw new Error("Email handler not configured");
     }
 
-    return this.emailHandler.confirmEmail(email, token);
+    return this.emailHandler.confirmEmail(email, token, emailParams);
   }
 
-  async confirmResetPassword(email: string, token: string, password: string) {
+  async confirmResetPassword(
+    email: string,
+    token: string,
+    password: string,
+    emailParams?: ResetPasswordEmailParams,
+  ) {
     if (!this.emailHandler) {
       return { success: false };
     }
 
-    return this.emailHandler.confirmResetPassword(email, token, password);
+    return this.emailHandler.confirmResetPassword(
+      email,
+      token,
+      password,
+      emailParams,
+    );
   }
 
   async login<T>(

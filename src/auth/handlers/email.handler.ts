@@ -10,24 +10,35 @@ import {
 
 import { hash, generateToken } from "../utils/auth.utils";
 import { TemplateTypes } from "../email.enum";
-import { SendEmailArgs, TemplateArgs } from "../interfaces/email.types";
+import {
+  ConfirmEmailParams,
+  ResetPasswordEmailParams,
+  SendEmailArgs,
+  TemplateArgs,
+} from "../interfaces/email.types";
 import { EmailHandlerOptions } from "../interfaces/email.types";
 
 export class EmailHandler {
   private saltingRounds: number;
   private resetPasswordTokens: Map<
     string,
-    {
-      token: string;
-      exp: number;
-    }
+    Map<
+      string,
+      {
+        token: string;
+        exp: number;
+      }
+    >
   > = new Map();
   private confirmEmailTokens: Map<
     string,
-    {
-      token: string;
-      exp: number;
-    }
+    Map<
+      string,
+      {
+        token: string;
+        exp: number;
+      }
+    >
   > = new Map();
 
   private confirmationLinkExpiration = DEFAULT_CONFIRMATION_LINK_EXPIRATION_MS;
@@ -54,20 +65,28 @@ export class EmailHandler {
     }
   }
 
-  async confirmResetPassword(email: string, token: string, password: string) {
+  async confirmResetPassword(
+    email: string,
+    token: string,
+    password: string,
+    emailParams?: ResetPasswordEmailParams,
+    ) {
     try {
+      const tokenKey = this.getTokenKey(email, emailParams);
       const isValid = this.verifyToken(
         email,
         token,
+        tokenKey,
         TemplateTypes.RESET_PASSWORD,
       );
 
       if (isValid) {
-        this.resetPasswordTokens.delete(email);
+        this.deleteToken(email, tokenKey, TemplateTypes.RESET_PASSWORD);
 
         await this.options.repo.resetPassword(
           email,
           await hash(password, this.saltingRounds),
+          emailParams,
         );
 
         return { success: true };
@@ -79,13 +98,24 @@ export class EmailHandler {
     }
   }
 
-  private verifyToken(email: string, token: string, type: TemplateTypes) {
+  private verifyToken(
+    email: string,
+    token: string,
+    tokenKey: string,
+    type: TemplateTypes,
+  ) {
     const collection =
       type === TemplateTypes.RESET_PASSWORD
         ? this.resetPasswordTokens
         : this.confirmEmailTokens;
 
-    const record = collection.get(email);
+    const emailTokens = collection.get(email);
+
+    if (!emailTokens) {
+      return false;
+    }
+
+    const record = emailTokens.get(tokenKey);
 
     if (!record) {
       return false;
@@ -98,7 +128,7 @@ export class EmailHandler {
     const now = Date.now();
 
     if (now > record.exp) {
-      this.resetPasswordTokens.delete(email);
+      this.deleteToken(email, tokenKey, type);
 
       return false;
     }
@@ -106,13 +136,13 @@ export class EmailHandler {
     return true;
   }
 
-  async sendConfirmPasswordEmail(email: string) {
+  async sendConfirmPasswordEmail(email: string, emailParams?: ConfirmEmailParams) {
     try {
       const { createConfirmEmailLink } = this.options.services;
 
-      const token = this.generateConfirmPasswordToken(email);
+      const token = this.generateConfirmPasswordToken(email, emailParams);
 
-      const link = await createConfirmEmailLink(email, token);
+      const link = await createConfirmEmailLink(email, token, emailParams?.linkParams);
       const { text, html } = this.getConfirmEmailTemplate({ email, link });
 
       const params = this.getEmailParams(
@@ -136,24 +166,37 @@ export class EmailHandler {
     }
   }
 
-  async confirmEmail(email: string, token: string) {
-    const isValid = this.verifyToken(email, token, TemplateTypes.CONFIRM_EMAIL);
+  async confirmEmail(email: string, token: string, emailParams?: ConfirmEmailParams) {
+    const tokenKey = this.getTokenKey(email, emailParams);
+    const isValid = this.verifyToken(
+      email,
+      token,
+      tokenKey,
+      TemplateTypes.CONFIRM_EMAIL,
+    );
 
     if (!isValid) {
       throw new PassauthInvalidConfirmEmailTokenException(email);
     }
 
-    this.confirmEmailTokens.delete(email);
+    this.deleteToken(email, tokenKey, TemplateTypes.CONFIRM_EMAIL);
 
-    await this.options.repo.confirmEmail(email);
+    await this.options.repo.confirmEmail(email, emailParams);
   }
 
-  async sendResetPasswordEmail(email: string) {
+  async sendResetPasswordEmail(
+    email: string,
+    emailParams?: ResetPasswordEmailParams,
+  ) {
     try {
       const { createResetPasswordLink } = this.options.services;
-      const token = this.generateResetPasswordToken(email);
+      const token = this.generateResetPasswordToken(email, emailParams);
 
-      const link = await createResetPasswordLink(email, token);
+      const link = await createResetPasswordLink(
+        email,
+        token,
+        emailParams?.linkParams,
+      );
       const { text, html } = this.getResetPasswordTemplate({ email, link });
 
       const params = this.getEmailParams(
@@ -174,11 +217,17 @@ export class EmailHandler {
     }
   }
 
-  private generateResetPasswordToken(email: string) {
+  private generateResetPasswordToken(
+    email: string,
+    emailParams?: ResetPasswordEmailParams,
+  ) {
     const token = generateToken();
     const exp = Date.now() + this.resetPasswordLinkExpiration;
+    const tokenKey = this.getTokenKey(email, emailParams);
+    const emailTokens = this.resetPasswordTokens.get(email) || new Map();
 
-    this.resetPasswordTokens.set(email, { token, exp });
+    emailTokens.set(tokenKey, { token, exp });
+    this.resetPasswordTokens.set(email, emailTokens);
 
     return token;
   }
@@ -225,12 +274,43 @@ export class EmailHandler {
     };
   }
 
-  private generateConfirmPasswordToken(email: string) {
+  private generateConfirmPasswordToken(
+    email: string,
+    emailParams?: ConfirmEmailParams,
+  ) {
     const token = generateToken();
     const exp = Date.now() + this.confirmationLinkExpiration;
+    const tokenKey = this.getTokenKey(email, emailParams);
+    const emailTokens = this.confirmEmailTokens.get(email) || new Map();
 
-    this.confirmEmailTokens.set(email, { token, exp });
+    emailTokens.set(tokenKey, { token, exp });
+    this.confirmEmailTokens.set(email, emailTokens);
 
     return token;
+  }
+
+  private getTokenKey(
+    email: string,
+    emailParams?: ConfirmEmailParams | ResetPasswordEmailParams,
+  ) {
+    return emailParams?.key || email;
+  }
+
+  private deleteToken(email: string, tokenKey: string, type: TemplateTypes) {
+    const collection =
+      type === TemplateTypes.RESET_PASSWORD
+        ? this.resetPasswordTokens
+        : this.confirmEmailTokens;
+    const emailTokens = collection.get(email);
+
+    if (!emailTokens) {
+      return;
+    }
+
+    emailTokens.delete(tokenKey);
+
+    if (emailTokens.size === 0) {
+      collection.delete(email);
+    }
   }
 }

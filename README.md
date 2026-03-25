@@ -333,44 +333,54 @@ Generates a new token pair and stores a hashed refresh token.
 - **Returns**
   - `Promise<{ accessToken: string; refreshToken: string }>`
 
-#### `sendResetPasswordEmail(email)`
+#### `sendResetPasswordEmail(email, emailParams?)`
 Creates and sends a password reset email (when email module is configured).
 
 - **Arguments**
   - `email` (**required**) — `string`
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` scopes the cached token for this email. `linkParams` adds extra params to the reset link.
 - **Returns**
   - `Promise<{ success: boolean; error?: unknown }>`
 
-#### `confirmResetPassword(email, token, password)`
+#### `confirmResetPassword(email, token, password, emailParams?)`
 Validates a reset token and updates the user password.
 
 - **Arguments**
   - `email` (**required**) — `string`
   - `token` (**required**) — `string`
   - `password` (**required**) — `string` (new plain password, hashed internally)
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` must match the one used when the reset token was generated. `linkParams` are forwarded to `email.repo.resetPassword(...)`.
 - **Returns**
   - `Promise<{ success: boolean; error?: unknown }>`
 
-#### `sendConfirmPasswordEmail(email)`
+#### `sendConfirmPasswordEmail(email, emailParams?)`
 Creates and sends an email confirmation message.
 
 - **Arguments**
   - `email` (**required**) — `string`
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` scopes the cached token for this email. `linkParams` adds extra params to the confirmation link.
 - **Returns**
   - `Promise<{ success: boolean; error?: unknown }>`
 
-#### `confirmEmail(email, token)`
+#### `confirmEmail(email, token, emailParams?)`
 Validates the email confirmation token and marks email as confirmed via your email repo.
 
 - **Arguments**
   - `email` (**required**) — `string`
   - `token` (**required**) — `string`
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` must match the one used when the confirmation token was generated. `linkParams` are forwarded to `email.repo.confirmEmail(...)`.
 - **Returns**
   - `Promise<void>`
 
 ## Optional email flows
 
 To enable confirmation and reset-password flows, provide an `email` config.
+
+Tokens for confirmation and reset are stored by `email`, and inside each email by `emailParams.key`. Generating a new token with the same `email + key` invalidates the previous token for security reasons. Generating tokens with different keys keeps them isolated. If `key` is not provided, the library uses the email itself as the key.
 
 ### `EmailHandlerOptions` API (detailed)
 
@@ -400,12 +410,24 @@ type EmailHandlerOptions = {
     };
   };
   services: {
-    createResetPasswordLink(email: string, token: string): Promise<string>;
-    createConfirmEmailLink(email: string, token: string): Promise<string>;
+    createResetPasswordLink(
+      email: string,
+      token: string,
+      linkParams?: Record<string, unknown>
+    ): Promise<string>;
+    createConfirmEmailLink(
+      email: string,
+      token: string,
+      linkParams?: Record<string, unknown>
+    ): Promise<string>;
   };
   repo: {
-    confirmEmail(email: string): Promise<boolean>;
-    resetPassword(email: string, password: string): Promise<boolean>;
+    confirmEmail(email: string, emailParams?: ConfirmEmailParams): Promise<boolean>;
+    resetPassword(
+      email: string,
+      password: string,
+      emailParams?: ResetPasswordEmailParams
+    ): Promise<boolean>;
   };
 };
 ```
@@ -422,12 +444,12 @@ type EmailHandlerOptions = {
   Delivery adapter with `send(emailData: SendEmailArgs): Promise<void>`.
 
 - `services` (**required**) — object with async link builders:
-  - `createResetPasswordLink(email, token): Promise<string>`
-  - `createConfirmEmailLink(email, token): Promise<string>`
+  - `createResetPasswordLink(email, token, linkParams?): Promise<string>`
+  - `createConfirmEmailLink(email, token, linkParams?): Promise<string>`
 
 - `repo` (**required**) — object with async persistence actions:
-  - `confirmEmail(email): Promise<boolean>`
-  - `resetPassword(email, password): Promise<boolean>`
+  - `confirmEmail(email, emailParams?): Promise<boolean>`
+  - `resetPassword(email, password, emailParams?): Promise<boolean>`
 
 - `emailConfig` (**optional**) — per-template overrides:
   - `linkExpirationMs?: number` to customize token/link validity
@@ -452,20 +474,44 @@ const emailOptions: EmailHandlerOptions = {
     },
   },
   services: {
-    async createResetPasswordLink(email, token) {
-      return `https://app.acme.com/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
+    async createResetPasswordLink(email, token, linkParams) {
+      const query = new URLSearchParams({
+        email,
+        token,
+        ...Object.fromEntries(
+          Object.entries(linkParams ?? {}).map(([key, value]) => [
+            key,
+            String(value),
+          ]),
+        ),
+      });
+
+      return `https://app.acme.com/reset-password?${query.toString()}`;
     },
-    async createConfirmEmailLink(email, token) {
-      return `https://app.acme.com/confirm-email?email=${encodeURIComponent(email)}&token=${token}`;
+    async createConfirmEmailLink(email, token, linkParams) {
+      const query = new URLSearchParams({
+        email,
+        token,
+        ...Object.fromEntries(
+          Object.entries(linkParams ?? {}).map(([key, value]) => [
+            key,
+            String(value),
+          ]),
+        ),
+      });
+
+      return `https://app.acme.com/confirm-email?${query.toString()}`;
     },
   },
   repo: {
-    async confirmEmail(email) {
+    async confirmEmail(email, emailParams) {
       // Mark user as emailVerified=true in your DB
+      // emailParams?.linkParams can be used for redirect/tracking context
       return true;
     },
-    async resetPassword(email, hashedPassword) {
+    async resetPassword(email, hashedPassword, emailParams) {
       // Save the hashed password in your DB
+      // emailParams?.linkParams can be used for redirect/tracking context
       return true;
     },
   },
@@ -479,6 +525,71 @@ const emailOptions: EmailHandlerOptions = {
   },
 };
 ```
+
+Usage with additional reset-link params:
+
+```ts
+await passauth.handler.sendResetPasswordEmail("user@acme.com", {
+  key: "tenant-a",
+  linkParams: {
+    key: "tenant-a",
+    redirectTo: "/settings/security",
+    source: "password-reset",
+  },
+});
+```
+
+`key` scopes the cached token. Reissuing a reset for the same `email + key` invalidates the previous token. `linkParams` are passed into `createResetPasswordLink(...)`, so you can append redirect or tracking query params to the emailed URL.
+
+When the user comes back from that link, you can pass the same params into `confirmResetPassword(...)`:
+
+```ts
+await passauth.handler.confirmResetPassword(
+  "user@acme.com",
+  tokenFromUrl,
+  "new-password",
+  {
+    key: "tenant-a",
+    linkParams: {
+      key: "tenant-a",
+      redirectTo: "/settings/security",
+      source: "password-reset",
+    },
+  },
+);
+```
+
+Those params are forwarded to `email.repo.resetPassword(...)`, which lets your application finalize the reset with the same contextual data used to build the link.
+
+Usage with additional confirmation-link params:
+
+```ts
+await passauth.handler.sendConfirmPasswordEmail("user@acme.com", {
+  key: "tenant-a",
+  linkParams: {
+    key: "tenant-a",
+    redirectTo: "/settings/security",
+    source: "billing-upgrade",
+  },
+});
+```
+
+`key` scopes the cached token. Reissuing a confirmation for the same `email + key` invalidates the previous token. `linkParams` are passed into `createConfirmEmailLink(...)`, so you can append redirect or tracking query params to the emailed URL.
+
+When the user comes back from that link, you can pass the same params into `confirmEmail(...)`:
+
+```ts
+await passauth.handler.confirmEmail("user@acme.com", tokenFromUrl, {
+  key: "tenant-a",
+  linkParams: {
+    key: "tenant-a",
+    redirectTo: "/settings/security",
+    source: "billing-upgrade",
+  },
+});
+```
+
+Those params are forwarded to `email.repo.confirmEmail(...)`, which lets your application finalize the confirmation with the same contextual data used to build the link.
 
 ## Plugins
 
