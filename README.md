@@ -235,8 +235,8 @@ Creates and sends a password reset email (when email module is configured).
 
 - **Arguments**
   - `email` (**required**) — `string`
-  - `emailParams` (**optional**) — `{ linkParams: Record<string, unknown> }`
-    Additional params forwarded to the reset link builder.
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` scopes the cached token for this email. `linkParams` adds extra params to the reset link.
 - **Returns**
   - `Promise<{ success: boolean; error?: unknown }>`
 
@@ -247,8 +247,8 @@ Validates a reset token and updates the user password.
   - `email` (**required**) — `string`
   - `token` (**required**) — `string`
   - `password` (**required**) — `string` (new plain password, hashed internally)
-  - `emailParams` (**optional**) — `{ linkParams: Record<string, unknown> }`
-    Additional reset-link params that are forwarded to `email.repo.resetPassword(...)`.
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` must match the one used when the reset token was generated. `linkParams` are forwarded to `email.repo.resetPassword(...)`.
 - **Returns**
   - `Promise<{ success: boolean; error?: unknown }>`
 
@@ -257,8 +257,8 @@ Creates and sends an email confirmation message.
 
 - **Arguments**
   - `email` (**required**) — `string`
-  - `emailParams` (**optional**) — `{ linkParams: Record<string, unknown> }`
-    Additional params forwarded to the confirmation link builder.
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` scopes the cached token for this email. `linkParams` adds extra params to the confirmation link.
 - **Returns**
   - `Promise<{ success: boolean; error?: unknown }>`
 
@@ -268,14 +268,16 @@ Validates the email confirmation token and marks email as confirmed via your ema
 - **Arguments**
   - `email` (**required**) — `string`
   - `token` (**required**) — `string`
-  - `emailParams` (**optional**) — `{ linkParams: Record<string, unknown> }`
-    Additional confirmation-link params that are forwarded to `email.repo.confirmEmail(...)`.
+  - `emailParams` (**optional**) — `{ key?: string; linkParams?: Record<string, unknown> }`
+    `key` must match the one used when the confirmation token was generated. `linkParams` are forwarded to `email.repo.confirmEmail(...)`.
 - **Returns**
   - `Promise<void>`
 
 ## Optional email flows
 
 To enable confirmation and reset-password flows, provide an `email` config.
+
+Tokens for confirmation and reset are stored by `email`, and inside each email by `emailParams.key`. Generating a new token with the same `email + key` invalidates the previous token for security reasons. Generating tokens with different keys keeps them isolated. If `key` is not provided, the library uses the email itself as the key.
 
 ### `EmailHandlerOptions` API (detailed)
 
@@ -425,14 +427,16 @@ Usage with additional reset-link params:
 
 ```ts
 await passauth.handler.sendResetPasswordEmail("user@acme.com", {
+  key: "tenant-a",
   linkParams: {
+    key: "tenant-a",
     redirectTo: "/settings/security",
     source: "password-reset",
   },
 });
 ```
 
-These values are passed into `createResetPasswordLink(...)`, so you can append redirect or tracking query params to the emailed URL.
+`key` scopes the cached token. Reissuing a reset for the same `email + key` invalidates the previous token. `linkParams` are passed into `createResetPasswordLink(...)`, so you can append redirect or tracking query params to the emailed URL.
 
 When the user comes back from that link, you can pass the same params into `confirmResetPassword(...)`:
 
@@ -442,7 +446,9 @@ await passauth.handler.confirmResetPassword(
   tokenFromUrl,
   "new-password",
   {
+    key: "tenant-a",
     linkParams: {
+      key: "tenant-a",
       redirectTo: "/settings/security",
       source: "password-reset",
     },
@@ -456,20 +462,24 @@ Usage with additional confirmation-link params:
 
 ```ts
 await passauth.handler.sendConfirmPasswordEmail("user@acme.com", {
+  key: "tenant-a",
   linkParams: {
+    key: "tenant-a",
     redirectTo: "/settings/security",
     source: "billing-upgrade",
   },
 });
 ```
 
-These values are passed into `createConfirmEmailLink(...)`, so you can append redirect or tracking query params to the emailed URL.
+`key` scopes the cached token. Reissuing a confirmation for the same `email + key` invalidates the previous token. `linkParams` are passed into `createConfirmEmailLink(...)`, so you can append redirect or tracking query params to the emailed URL.
 
 When the user comes back from that link, you can pass the same params into `confirmEmail(...)`:
 
 ```ts
 await passauth.handler.confirmEmail("user@acme.com", tokenFromUrl, {
+  key: "tenant-a",
   linkParams: {
+    key: "tenant-a",
     redirectTo: "/settings/security",
     source: "billing-upgrade",
   },

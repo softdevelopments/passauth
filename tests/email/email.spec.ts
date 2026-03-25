@@ -305,6 +305,85 @@ describe("Email Plugin:Login", () => {
     );
   });
 
+  test("confirmEmail - Should invalidate the previous token when a new token is generated with the same key", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const confirmEmailSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createConfirmEmailLink",
+    );
+    const emailParams = {
+      key: "tenant-a",
+      linkParams: { tenantId: "tenant-a" },
+    };
+
+    await sut.sendConfirmPasswordEmail(userData.email, emailParams);
+    const firstToken = confirmEmailSpy.mock.calls[0][1];
+
+    await sut.sendConfirmPasswordEmail(userData.email, emailParams);
+    const secondToken = confirmEmailSpy.mock.calls[1][1];
+
+    await expect(
+      sut.confirmEmail(userData.email, firstToken, { key: "tenant-a" }),
+    ).rejects.toThrow(PassauthInvalidConfirmEmailTokenException);
+    await expect(
+      sut.confirmEmail(userData.email, secondToken, { key: "tenant-a" }),
+    ).resolves.toBeUndefined();
+  });
+
+  test("confirmEmail - Should keep tokens isolated by key for the same email", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const confirmEmailSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createConfirmEmailLink",
+    );
+    const repoConfirmEmailSpy = jest.spyOn(
+      emailHandlerConfig.repo,
+      "confirmEmail",
+    );
+
+    await sut.sendConfirmPasswordEmail(userData.email, {
+      key: "tenant-a",
+      linkParams: { tenantId: "tenant-a" },
+    });
+    const firstToken = confirmEmailSpy.mock.calls[0][1];
+
+    await sut.sendConfirmPasswordEmail(userData.email, {
+      key: "tenant-b",
+      linkParams: { tenantId: "tenant-b" },
+    });
+    const secondToken = confirmEmailSpy.mock.calls[1][1];
+
+    await expect(
+      sut.confirmEmail(userData.email, firstToken, { key: "tenant-a" }),
+    ).resolves.toBeUndefined();
+    await expect(
+      sut.confirmEmail(userData.email, secondToken, { key: "tenant-b" }),
+    ).resolves.toBeUndefined();
+    expect(repoConfirmEmailSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test("confirmEmail - Should default the token key to the email when key is not provided", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const confirmEmailSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createConfirmEmailLink",
+    );
+
+    await sut.sendConfirmPasswordEmail(userData.email);
+    const firstToken = confirmEmailSpy.mock.calls[0][1];
+
+    await sut.sendConfirmPasswordEmail(userData.email);
+    const secondToken = confirmEmailSpy.mock.calls[1][1];
+
+    await expect(sut.confirmEmail(userData.email, firstToken)).rejects.toThrow(
+      PassauthInvalidConfirmEmailTokenException,
+    );
+    await expect(sut.confirmEmail(userData.email, secondToken)).resolves.toBeUndefined();
+  });
+
   test("sendResetPasswordEmail - Should pass correct params to email sender", async () => {
     const passauth = Passauth(passauthConfig);
     const sut = passauth.handler;
@@ -471,6 +550,68 @@ describe("Email Plugin:Login", () => {
       emailParams,
     );
     expect(success).toBe(true);
+  });
+
+  test("confirmResetPassword - Should invalidate the previous token when a new token is generated with the same key", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const resetPasswordSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createResetPasswordLink",
+    );
+    const emailParams = {
+      key: "tenant-a",
+      linkParams: { tenantId: "tenant-a" },
+    };
+
+    await sut.sendResetPasswordEmail(userData.email, emailParams);
+    const firstToken = resetPasswordSpy.mock.calls[0][1];
+
+    await sut.sendResetPasswordEmail(userData.email, emailParams);
+    const secondToken = resetPasswordSpy.mock.calls[1][1];
+
+    await expect(
+      sut.confirmResetPassword(userData.email, firstToken, "new-password-a", {
+        key: "tenant-a",
+      }),
+    ).resolves.toEqual({ success: false });
+    await expect(
+      sut.confirmResetPassword(userData.email, secondToken, "new-password-b", {
+        key: "tenant-a",
+      }),
+    ).resolves.toEqual({ success: true });
+  });
+
+  test("confirmResetPassword - Should keep tokens isolated by key for the same email", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const resetPasswordSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createResetPasswordLink",
+    );
+
+    await sut.sendResetPasswordEmail(userData.email, {
+      key: "tenant-a",
+      linkParams: { tenantId: "tenant-a" },
+    });
+    const firstToken = resetPasswordSpy.mock.calls[0][1];
+
+    await sut.sendResetPasswordEmail(userData.email, {
+      key: "tenant-b",
+      linkParams: { tenantId: "tenant-b" },
+    });
+    const secondToken = resetPasswordSpy.mock.calls[1][1];
+
+    await expect(
+      sut.confirmResetPassword(userData.email, firstToken, "new-password-a", {
+        key: "tenant-a",
+      }),
+    ).resolves.toEqual({ success: true });
+    await expect(
+      sut.confirmResetPassword(userData.email, secondToken, "new-password-b", {
+        key: "tenant-b",
+      }),
+    ).resolves.toEqual({ success: true });
   });
 });
 

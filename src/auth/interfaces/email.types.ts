@@ -23,13 +23,14 @@ export type GetEmailTemplate = (params: TemplateArgs) => {
   html: string;
 };
 
-export type ConfirmEmailParams = {
-  linkParams: Record<string, unknown>;
+type BaseEmailFlowParams = {
+  key?: string;
+  linkParams?: Record<string, unknown>;
 };
 
-export type ResetPasswordEmailParams = {
-  linkParams: Record<string, unknown>;
-};
+export type ConfirmEmailParams = BaseEmailFlowParams;
+
+export type ResetPasswordEmailParams = BaseEmailFlowParams;
 
 type EmailTemplatesOptions = {
   [TemplateTypes.CONFIRM_EMAIL]?: GetEmailTemplate;
