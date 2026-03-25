@@ -10,7 +10,12 @@ import {
 
 import { hash, generateToken } from "../utils/auth.utils";
 import { TemplateTypes } from "../email.enum";
-import { SendEmailArgs, TemplateArgs } from "../interfaces/email.types";
+import {
+  ConfirmEmailParams,
+  ResetPasswordEmailParams,
+  SendEmailArgs,
+  TemplateArgs,
+} from "../interfaces/email.types";
 import { EmailHandlerOptions } from "../interfaces/email.types";
 
 export class EmailHandler {
@@ -54,7 +59,12 @@ export class EmailHandler {
     }
   }
 
-  async confirmResetPassword(email: string, token: string, password: string) {
+  async confirmResetPassword(
+    email: string,
+    token: string,
+    password: string,
+    emailParams?: ResetPasswordEmailParams,
+  ) {
     try {
       const isValid = this.verifyToken(
         email,
@@ -68,6 +78,7 @@ export class EmailHandler {
         await this.options.repo.resetPassword(
           email,
           await hash(password, this.saltingRounds),
+          emailParams,
         );
 
         return { success: true };
@@ -106,13 +117,13 @@ export class EmailHandler {
     return true;
   }
 
-  async sendConfirmPasswordEmail(email: string) {
+  async sendConfirmPasswordEmail(email: string, emailParams?: ConfirmEmailParams) {
     try {
       const { createConfirmEmailLink } = this.options.services;
 
       const token = this.generateConfirmPasswordToken(email);
 
-      const link = await createConfirmEmailLink(email, token);
+      const link = await createConfirmEmailLink(email, token, emailParams?.linkParams);
       const { text, html } = this.getConfirmEmailTemplate({ email, link });
 
       const params = this.getEmailParams(
@@ -136,7 +147,7 @@ export class EmailHandler {
     }
   }
 
-  async confirmEmail(email: string, token: string) {
+  async confirmEmail(email: string, token: string, emailParams?: ConfirmEmailParams) {
     const isValid = this.verifyToken(email, token, TemplateTypes.CONFIRM_EMAIL);
 
     if (!isValid) {
@@ -145,15 +156,22 @@ export class EmailHandler {
 
     this.confirmEmailTokens.delete(email);
 
-    await this.options.repo.confirmEmail(email);
+    await this.options.repo.confirmEmail(email, emailParams);
   }
 
-  async sendResetPasswordEmail(email: string) {
+  async sendResetPasswordEmail(
+    email: string,
+    emailParams?: ResetPasswordEmailParams,
+  ) {
     try {
       const { createResetPasswordLink } = this.options.services;
       const token = this.generateResetPasswordToken(email);
 
-      const link = await createResetPasswordLink(email, token);
+      const link = await createResetPasswordLink(
+        email,
+        token,
+        emailParams?.linkParams,
+      );
       const { text, html } = this.getResetPasswordTemplate({ email, link });
 
       const params = this.getEmailParams(

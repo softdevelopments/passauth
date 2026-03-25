@@ -23,6 +23,14 @@ export type GetEmailTemplate = (params: TemplateArgs) => {
   html: string;
 };
 
+export type ConfirmEmailParams = {
+  linkParams: Record<string, unknown>;
+};
+
+export type ResetPasswordEmailParams = {
+  linkParams: Record<string, unknown>;
+};
+
 type EmailTemplatesOptions = {
   [TemplateTypes.CONFIRM_EMAIL]?: GetEmailTemplate;
   [TemplateTypes.RESET_PASSWORD]?: GetEmailTemplate;
@@ -46,11 +54,19 @@ export type EmailHandlerOptions = {
   };
   templates?: EmailTemplatesOptions;
   services: {
-    createResetPasswordLink(email: string, token: string): Promise<string>;
-    createConfirmEmailLink(email: string, token: string): Promise<string>;
+    createResetPasswordLink(
+      email: string,
+      token: string,
+      linkParams?: Record<string, unknown>,
+    ): Promise<string>;
+    createConfirmEmailLink(email: string, token: string, linkParams?: Record<string, unknown>): Promise<string>;
   };
   repo: {
-    confirmEmail(email: string): Promise<boolean>;
-    resetPassword(email: string, password: string): Promise<boolean>;
+    confirmEmail(email: string, emailParams?: ConfirmEmailParams): Promise<boolean>;
+    resetPassword(
+      email: string,
+      password: string,
+      emailParams?: ResetPasswordEmailParams,
+    ): Promise<boolean>;
   };
 };

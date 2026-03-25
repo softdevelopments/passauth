@@ -1,5 +1,9 @@
 import { AuthJwtPayload } from "../utils/auth.utils";
-import { EmailHandlerOptions } from "../interfaces/email.types";
+import {
+  ConfirmEmailParams,
+  EmailHandlerOptions,
+  ResetPasswordEmailParams,
+} from "../interfaces/email.types";
 
 export type ID = string | number;
 
@@ -65,14 +69,21 @@ export interface PassauthHandler<U extends User> {
   ): Promise<AuthTokensResponse>;
   revokeRefreshToken(userId: ID): Promise<void>;
   generateTokens<D>(userId: ID, data?: D): Promise<AuthTokensResponse>;
-  sendResetPasswordEmail(email: string): Promise<{ success: boolean; error?: unknown }>;
+  sendResetPasswordEmail(
+    email: string,
+    emailParams?: ResetPasswordEmailParams,
+  ): Promise<{ success: boolean; error?: unknown }>;
   confirmResetPassword(
     email: string,
     token: string,
     password: string,
+    emailParams?: ResetPasswordEmailParams,
   ): Promise<{ success: boolean; error?: unknown }>;
-  confirmEmail(email: string, token: string): Promise<void>;
-  sendConfirmPasswordEmail(email: string): Promise<{ success: boolean; error?: unknown }>;
+  confirmEmail(email: string, token: string, emailParams?: ConfirmEmailParams): Promise<void>;
+  sendConfirmPasswordEmail(
+    email: string,
+    emailParams?: ConfirmEmailParams,
+  ): Promise<{ success: boolean; error?: unknown }>;
 }
 
 export type PassauthHandlerConfig = {

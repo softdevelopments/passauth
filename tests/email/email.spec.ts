@@ -168,6 +168,49 @@ describe("Email Plugin:Login", () => {
     expect(success).toBe(true);
   });
 
+  test("sendConfirmPasswordEmail - Should pass emailParams.linkParams to confirmation link builder", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const linkParams = {
+      redirectTo: "/settings/security",
+      source: "email-confirmation",
+    };
+
+    const createConfirmEmailLinkSpy = jest
+      .spyOn(emailHandlerConfig.services, "createConfirmEmailLink")
+      .mockImplementationOnce(async (_email, token, params) => {
+        const query = new URLSearchParams({
+          token,
+          ...Object.fromEntries(
+            Object.entries((params ?? {}) as Record<string, unknown>).map(([key, value]) => [
+              key,
+              String(value),
+            ]),
+          ),
+        });
+
+        return `http://mysite.com/confirm-email?${query.toString()}`;
+      });
+    const emailSenderSpy = jest.spyOn(emailClient, "send");
+
+    const { success } = await sut.sendConfirmPasswordEmail(userData.email, {
+      linkParams,
+    });
+
+    expect(createConfirmEmailLinkSpy).toHaveBeenCalledWith(
+      userData.email,
+      expect.any(String),
+      linkParams,
+    );
+    expect(emailSenderSpy.mock.calls[0][0].text).toContain(
+      "redirectTo=%2Fsettings%2Fsecurity",
+    );
+    expect(emailSenderSpy.mock.calls[0][0].text).toContain(
+      "source=email-confirmation",
+    );
+    expect(success).toBe(true);
+  });
+
   test("sendConfirmPasswordEmail - Should throw error if the email fails to send", async () => {
     const passauth = Passauth(passauthConfig);
     const sut = passauth.handler;
@@ -211,7 +254,35 @@ describe("Email Plugin:Login", () => {
 
     await sut.confirmEmail(userData.email, token);
 
-    expect(repoConfirmEmailSpy).toHaveBeenCalledWith(userData.email);
+    expect(repoConfirmEmailSpy).toHaveBeenCalledWith(userData.email, undefined);
+  });
+
+  test("confirmEmail - Should pass emailParams to repo.confirmEmail", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const emailParams = {
+      linkParams: {
+        redirectTo: "/settings/security",
+        source: "email-confirmation",
+      },
+    };
+
+    const confirmEmailSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createConfirmEmailLink",
+    );
+    const repoConfirmEmailSpy = jest.spyOn(
+      emailHandlerConfig.repo,
+      "confirmEmail",
+    );
+
+    await sut.sendConfirmPasswordEmail(userData.email, emailParams);
+
+    const token = confirmEmailSpy.mock.calls[0][1];
+
+    await sut.confirmEmail(userData.email, token, emailParams);
+
+    expect(repoConfirmEmailSpy).toHaveBeenCalledWith(userData.email, emailParams);
   });
 
   test("confirmEmail - Should fail if the token is used more than once", async () => {
@@ -264,6 +335,49 @@ describe("Email Plugin:Login", () => {
     );
   });
 
+  test("sendResetPasswordEmail - Should pass emailParams.linkParams to reset link builder", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const emailParams = {
+      linkParams: {
+        redirectTo: "/settings/security",
+        source: "password-reset",
+      },
+    };
+
+    const createResetPasswordLinkSpy = jest
+      .spyOn(emailHandlerConfig.services, "createResetPasswordLink")
+      .mockImplementationOnce(async (_email, token, params) => {
+        const query = new URLSearchParams({
+          token,
+          ...Object.fromEntries(
+            Object.entries((params ?? {}) as Record<string, unknown>).map(([key, value]) => [
+              key,
+              String(value),
+            ]),
+          ),
+        });
+
+        return `http://mysite.com/reset-password?${query.toString()}`;
+      });
+    const emailSenderSpy = jest.spyOn(emailClient, "send");
+
+    const { success } = await sut.sendResetPasswordEmail(userData.email, emailParams);
+
+    expect(createResetPasswordLinkSpy).toHaveBeenCalledWith(
+      userData.email,
+      expect.any(String),
+      emailParams.linkParams,
+    );
+    expect(emailSenderSpy.mock.calls[0][0].text).toContain(
+      "redirectTo=%2Fsettings%2Fsecurity",
+    );
+    expect(emailSenderSpy.mock.calls[0][0].text).toContain(
+      "source=password-reset",
+    );
+    expect(success).toBe(true);
+  });
+
   test("confirmResetPassword - Should fail if token is invalid", async () => {
     const passauth = Passauth(passauthConfig);
     const sut = passauth.handler;
@@ -313,10 +427,49 @@ describe("Email Plugin:Login", () => {
     expect(repoResetPasswordSpy).toHaveBeenCalledWith(
       userData.email,
       expect.any(String),
+      undefined,
     );
 
     expect(await compareHash("new-password", hashedPassword)).toBe(true);
 
+    expect(success).toBe(true);
+  });
+
+  test("confirmResetPassword - Should pass emailParams to repo.resetPassword", async () => {
+    const passauth = Passauth(passauthConfig);
+    const sut = passauth.handler;
+    const emailParams = {
+      linkParams: {
+        redirectTo: "/settings/security",
+        source: "password-reset",
+      },
+    };
+
+    const resetPasswordSpy = jest.spyOn(
+      emailHandlerConfig.services,
+      "createResetPasswordLink",
+    );
+    const repoResetPasswordSpy = jest.spyOn(
+      emailHandlerConfig.repo,
+      "resetPassword",
+    );
+
+    await sut.sendResetPasswordEmail(userData.email, emailParams);
+
+    const token = resetPasswordSpy.mock.calls[0][1];
+
+    const { success } = await sut.confirmResetPassword(
+      userData.email,
+      token,
+      "new-password",
+      emailParams,
+    );
+
+    expect(repoResetPasswordSpy).toHaveBeenCalledWith(
+      userData.email,
+      expect.any(String),
+      emailParams,
+    );
     expect(success).toBe(true);
   });
 });
