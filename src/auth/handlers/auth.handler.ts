@@ -11,6 +11,7 @@ import {
   PassauthEmailFailedToSendEmailException,
   PassauthEmailNotVerifiedException,
 } from "../exceptions/email.exceptions";
+import { PassauthPasswordLoginBlockedException } from "../exceptions/password.exceptions";
 import {
   DEFAULT_JWT_EXPIRATION_MS,
   DEFAULT_REFRESH_EXPIRATION_TOKEN_MS,
@@ -23,6 +24,7 @@ import type {
   ID,
   LoginParams,
   PassauthHandler,
+  PasswordPolicyContext,
   RegisterParams,
   ResetPasswordEmailParams,
   User,
@@ -36,9 +38,15 @@ import {
   compareHash,
 } from "../utils/auth.utils";
 import { EmailHandler } from "./email.handler";
+import { PasswordPolicyHandler } from "./password-policy.handler";
 
-export class AuthHandler<U extends User> implements PassauthHandler<U> {
+export class AuthHandler<
+  U extends User,
+  PasswordParams extends Record<string, unknown> = Record<string, never>,
+> implements PassauthHandler<U>
+{
   private emailHandler: EmailHandler | undefined;
+  private passwordPolicyHandler: PasswordPolicyHandler<PasswordParams>;
 
   private refreshTokensLocalChaching: {
     [userId: ID]: {
@@ -57,7 +65,7 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
   public _name = "Passauth";
 
   constructor(
-    private options: HandlerOptions,
+    private options: HandlerOptions<PasswordParams>,
     public repo: AuthRepo<U>,
   ) {
     this.config = {
@@ -77,6 +85,10 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
       compareRefeshToken: typeof this.compareRefeshToken,
     };
 
+    this.passwordPolicyHandler = new PasswordPolicyHandler(
+      options.passwordPolicy,
+    );
+
     if (options.email) {
       this.emailHandler = new EmailHandler(options.email, {
         saltingRounds: this.config.SALTING_ROUNDS,
@@ -84,7 +96,61 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     }
   }
 
+  validatePassword<P extends Record<string, unknown> = Record<string, never>>(
+    password: string,
+    context?: PasswordPolicyContext<P>,
+  ) {
+    return this.passwordPolicyHandler.validatePassword(
+      password,
+      context as PasswordPolicyContext<PasswordParams> | undefined,
+    );
+  }
+
+  assertPasswordPolicy<
+    P extends Record<string, unknown> = Record<string, never>,
+  >(password: string, context?: PasswordPolicyContext<P>) {
+    this.passwordPolicyHandler.assertPassword(
+      password,
+      context as PasswordPolicyContext<PasswordParams> | undefined,
+    );
+  }
+
+  getPasswordPolicy<
+    P extends Record<string, unknown> = Record<string, never>,
+  >(context?: PasswordPolicyContext<P>) {
+    return this.passwordPolicyHandler.resolvePolicy(
+      context as PasswordPolicyContext<PasswordParams> | undefined,
+    );
+  }
+
+  getLoginAttemptState<
+    P extends Record<string, unknown> = Record<string, never>,
+  >(email: string, context?: PasswordPolicyContext<P>) {
+    return this.passwordPolicyHandler.getLoginAttemptState(
+      email,
+      context as PasswordPolicyContext<PasswordParams> | undefined,
+    );
+  }
+
+  resetLoginAttempts<
+    P extends Record<string, unknown> = Record<string, never>,
+  >(email: string, context?: PasswordPolicyContext<P>) {
+    return this.passwordPolicyHandler.resetLoginAttempts(
+      email,
+      context as PasswordPolicyContext<PasswordParams> | undefined,
+    );
+  }
+
   async register<T>(params: RegisterParams<T>) {
+    if (this.passwordPolicyHandler.isConfigured()) {
+      this.assertPasswordPolicy(params.password, {
+        operation: "register",
+        email: params.email,
+        password: params.password,
+        params: params as Record<string, unknown>,
+      });
+    }
+
     const existingUser = await this.repo.getUser({
       email: params.email,
     } as Partial<U>);
@@ -147,53 +213,110 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     password: string,
     emailParams?: ResetPasswordEmailParams,
   ) {
+    if (this.passwordPolicyHandler.isConfigured()) {
+      this.assertPasswordPolicy(password, {
+        operation: "confirmResetPassword",
+        email,
+        password,
+        emailParams,
+      });
+    }
+
     if (!this.emailHandler) {
       return { success: false };
     }
 
-    return this.emailHandler.confirmResetPassword(
+    const result = await this.emailHandler.confirmResetPassword(
       email,
       token,
       password,
       emailParams,
     );
+
+    if (result.success) {
+      await this.resetLoginAttempts(email, {
+        operation: "confirmResetPassword",
+        email,
+        password,
+        emailParams,
+      });
+    }
+
+    return result;
   }
 
   async login<T>(
     params: LoginParams<T>,
     config?: { jwtUserFields?: Array<keyof U> },
   ) {
-    const user = await this.repo.getUser(params as Partial<U>);
+    const loginContext: PasswordPolicyContext<PasswordParams> = {
+      operation: "login" as const,
+      email: params.email,
+      password: params.password,
+      params: params as unknown as PasswordParams,
+    };
 
-    if (!user) {
-      throw new PassauthInvalidUserException(params.email);
+    const state = await this.passwordPolicyHandler.ensureLoginAllowed(
+      params.email,
+      loginContext,
+    );
+
+    try {
+      const user = await this.repo.getUser(params as Partial<U>);
+
+      if (!user) {
+        throw new PassauthInvalidUserException(params.email);
+      }
+
+      if (user.isBlocked) {
+        throw new PassauthBlockedUserException(params.email);
+      }
+
+      if (this.emailHandler && !user.emailVerified) {
+        throw new PassauthEmailNotVerifiedException(params.email);
+      }
+
+      const isValidPassword = await compareHash(params.password, user.password);
+
+      if (!isValidPassword) {
+        throw new PassauthInvalidCredentialsException();
+      }
+
+      const jwtData = config?.jwtUserFields
+        ? config.jwtUserFields.reduce((jwtParams, userKey) => {
+            jwtParams[userKey] = user[userKey];
+
+            return jwtParams;
+          }, {} as Partial<U>)
+        : undefined;
+
+      const tokens = await this.generateTokens(user.id, jwtData);
+
+      await this.resetLoginAttempts(params.email, loginContext);
+
+      return tokens;
+    } catch (error) {
+      if (!this.isInvalidLoginError(error) || state.maxLoginAttempts === undefined) {
+        throw error;
+      }
+
+      const failedLogin = await this.passwordPolicyHandler.registerFailedLogin(
+        params.email,
+        loginContext,
+      );
+
+      if (
+        failedLogin.maxLoginAttempts !== undefined &&
+        failedLogin.attempts >= failedLogin.maxLoginAttempts
+      ) {
+        throw new PassauthPasswordLoginBlockedException(
+          failedLogin.email,
+          failedLogin.maxLoginAttempts,
+        );
+      }
+
+      throw error;
     }
-
-    if (user.isBlocked) {
-      throw new PassauthBlockedUserException(params.email);
-    }
-
-    if (this.emailHandler && !user.emailVerified) {
-      throw new PassauthEmailNotVerifiedException(params.email);
-    }
-
-    const isValidPassword = await compareHash(params.password, user.password);
-
-    if (!isValidPassword) {
-      throw new PassauthInvalidCredentialsException();
-    }
-
-    const jwtData = config?.jwtUserFields
-      ? config.jwtUserFields.reduce((params, userKey) => {
-          params[userKey] = user[userKey];
-
-          return params;
-        }, {} as Partial<U>)
-      : undefined;
-
-    const tokens = this.generateTokens(user.id, jwtData);
-
-    return tokens;
   }
 
   verifyAccessToken<D>(accessToken: string) {
@@ -320,5 +443,12 @@ export class AuthHandler<U extends User> implements PassauthHandler<U> {
     const isValid = await compareHash(`${userId}${token}`, hashedToken);
 
     return isValid;
+  }
+
+  private isInvalidLoginError(error: unknown) {
+    return (
+      error instanceof PassauthInvalidCredentialsException ||
+      error instanceof PassauthInvalidUserException
+    );
   }
 }

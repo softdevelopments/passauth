@@ -7,6 +7,7 @@ It provides a ready-to-use auth handler with:
 - Login with JWT access token + refresh token flow
 - Refresh token rotation and revocation
 - Optional email confirmation and password reset flows
+- Optional built-in password policy validation and login attempt blocking
 - Plugin support to extend or override handler behavior with type safety
 
 ## Installation
@@ -28,6 +29,9 @@ import {
   verifyAccessToken,
   decodeAccessToken,
   generateToken,
+  validatePasswordPolicy,
+  normalizePasswordPolicy,
+  assertPasswordPolicy,
   type AuthJwtPayload,
 } from "passauth/auth/utils";
 ```
@@ -190,6 +194,56 @@ const newTokens = await passauth.handler.refreshToken(accessToken, refreshToken)
 await passauth.handler.revokeRefreshToken(user.id);
 ```
 
+## Built-in password policy
+
+Password protection is now available directly in `passauth`. The feature is opt-in:
+if you omit `passwordPolicy`, the current register/login behavior stays unchanged.
+
+```ts
+import { Passauth, type User } from "passauth";
+
+type AppUser = User & {
+  name: string;
+};
+
+const passauth = Passauth<AppUser>({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  passwordPolicy: {
+    rules: {
+      minLength: 12,
+      maxLength: 64,
+      minUppercase: 1,
+      minLowercase: 1,
+      minNumbers: 1,
+      minSpecial: 1,
+      maxLoginAttempts: 5,
+      forbidWhitespace: true,
+    },
+  },
+});
+
+await passauth.handler.register({
+  email: "john@example.com",
+  password: "StrongPass1!",
+  name: "John",
+});
+
+const state = await passauth.handler.getLoginAttemptState("john@example.com");
+```
+
+When enabled, `passauth` validates passwords during `register(...)` and
+`confirmResetPassword(...)`, blocks repeated failed logins, and exposes:
+`validatePassword(...)`, `assertPasswordPolicy(...)`, `getPasswordPolicy(...)`,
+`getLoginAttemptState(...)`, and `resetLoginAttempts(...)`.
+
+`passwordPolicy` also supports:
+
+- `rules` for static policy definition
+- `resolvePolicy(context)` for tenant/provider-specific policy resolution
+- `resolveLoginAttemptScope(context)` for scoped login-attempt isolation
+- `loginAttemptStore` to persist failed attempts outside memory
+
 ## API overview
 
 `Passauth(config)` returns:
@@ -206,23 +260,33 @@ await passauth.handler.revokeRefreshToken(user.id);
 ```ts
 function Passauth<
   U extends User,
-  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[]
->(config: PassauthConfiguration<U, P>): {
+  PasswordParams extends Record<string, unknown> = Record<string, never>,
+  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[] = readonly PluginSpec<
+    U,
+    PassauthHandlerInt<U>,
+    any
+  >[]
+>(config: PassauthConfiguration<U, P, PasswordParams>): {
   handler: Omit<ComposeAug<PassauthHandler<U>, P>, "_aux">;
   plugins: Record<string, any>;
 }
 ```
 
-#### `PassauthConfiguration<U, P>`
+#### `PassauthConfiguration<U, P, PasswordParams>`
 
 ```ts
-type PassauthConfiguration<U extends User, P = undefined> = {
+type PassauthConfiguration<
+  U extends User,
+  P = undefined,
+  PasswordParams extends Record<string, unknown> = Record<string, never>,
+> = {
   secretKey: string;
   repo: AuthRepo<U>;
   saltingRounds?: number;
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
   email?: EmailHandlerOptions;
+  passwordPolicy?: PasswordPolicyOptions<PasswordParams>;
   plugins?: P;
 };
 ```
@@ -246,6 +310,9 @@ type PassauthConfiguration<U extends User, P = undefined> = {
 
 - `email` (**optional**) — `EmailHandlerOptions`  
   Enables email confirmation and reset-password flows when provided.
+
+- `passwordPolicy` (**optional**) — `PasswordPolicyOptions`  
+  Enables built-in password validation and failed-login tracking. When set to `{}`, passauth uses the default rule set.
 
 - `plugins` (**optional**) — `readonly PluginSpec[]`  
   List of plugins that can override/extend the handler API.

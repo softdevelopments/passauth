@@ -4,6 +4,13 @@ import {
   EmailHandlerOptions,
   ResetPasswordEmailParams,
 } from "../interfaces/email.types";
+import type {
+  LoginAttemptState,
+  NormalizedPasswordPolicy,
+  PasswordPolicyContext,
+  PasswordPolicyOptions,
+  PasswordValidationResult,
+} from "./password.types";
 
 export type ID = string | number;
 
@@ -12,7 +19,7 @@ export type User = {
   email: string;
   password: string;
   isBlocked: boolean;
-  emailVerified: boolean
+  emailVerified: boolean;
 };
 
 export type RegisterParams<P = Record<string, never>> = {
@@ -20,7 +27,7 @@ export type RegisterParams<P = Record<string, never>> = {
   password: string;
 } & P;
 
-export type LoginParams<P> = {
+export type LoginParams<P = Record<string, never>> = {
   email: string;
   password: string;
 } & P;
@@ -37,15 +44,22 @@ export interface AuthRepo<T extends User> {
   deleteCachedToken?: (userId: ID) => Promise<void>;
 }
 
-export type HandlerOptions = {
+export type HandlerOptions<
+  PasswordParams extends Record<string, unknown> = Record<string, never>,
+> = {
   secretKey: string;
   saltingRounds?: number;
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
   email?: EmailHandlerOptions;
+  passwordPolicy?: PasswordPolicyOptions<PasswordParams>;
 };
 
-export type PassauthConfiguration<U extends User, P = undefined> = HandlerOptions & {
+export type PassauthConfiguration<
+  U extends User,
+  P = undefined,
+  PasswordParams extends Record<string, unknown> = Record<string, never>,
+> = HandlerOptions<PasswordParams> & {
   repo: AuthRepo<U>;
   plugins?: P;
 };
@@ -69,6 +83,27 @@ export interface PassauthHandler<U extends User> {
   ): Promise<AuthTokensResponse>;
   revokeRefreshToken(userId: ID): Promise<void>;
   generateTokens<D>(userId: ID, data?: D): Promise<AuthTokensResponse>;
+  validatePassword<P extends Record<string, unknown> = Record<string, never>>(
+    password: string,
+    context?: PasswordPolicyContext<P>,
+  ): PasswordValidationResult;
+  assertPasswordPolicy<P extends Record<string, unknown> = Record<string, never>>(
+    password: string,
+    context?: PasswordPolicyContext<P>,
+  ): void;
+  getPasswordPolicy<P extends Record<string, unknown> = Record<string, never>>(
+    context?: PasswordPolicyContext<P>,
+  ): NormalizedPasswordPolicy;
+  getLoginAttemptState<
+    P extends Record<string, unknown> = Record<string, never>,
+  >(
+    email: string,
+    context?: PasswordPolicyContext<P>,
+  ): Promise<LoginAttemptState>;
+  resetLoginAttempts<P extends Record<string, unknown> = Record<string, never>>(
+    email: string,
+    context?: PasswordPolicyContext<P>,
+  ): Promise<void>;
   sendResetPasswordEmail(
     email: string,
     emailParams?: ResetPasswordEmailParams,
@@ -79,7 +114,11 @@ export interface PassauthHandler<U extends User> {
     password: string,
     emailParams?: ResetPasswordEmailParams,
   ): Promise<{ success: boolean; error?: unknown }>;
-  confirmEmail(email: string, token: string, emailParams?: ConfirmEmailParams): Promise<void>;
+  confirmEmail(
+    email: string,
+    token: string,
+    emailParams?: ConfirmEmailParams,
+  ): Promise<void>;
   sendConfirmPasswordEmail(
     email: string,
     emailParams?: ConfirmEmailParams,
