@@ -76,7 +76,7 @@ describe("Passauth password policy integration", () => {
     const passauth = Passauth({
       secretKey: "secret",
       repo,
-      passwordPolicy: {},
+      passwordPolicy: true,
     });
 
     await expect(
@@ -131,7 +131,7 @@ describe("Passauth password policy integration", () => {
     const passauth = Passauth({
       secretKey: "secret",
       repo,
-      passwordPolicy: {},
+      passwordPolicy: true,
     });
 
     await expect(
@@ -449,6 +449,14 @@ describe("Passauth password policy integration", () => {
 
   test("rejects invalid password policy configuration during initialization", () => {
     const { repo } = createBasicRepo();
+
+    expect(() =>
+      Passauth({
+        secretKey: "secret",
+        repo,
+        passwordPolicy: {} as any,
+      }),
+    ).toThrow(PassauthPasswordPolicyConfigurationException);
 
     expect(() =>
       Passauth({

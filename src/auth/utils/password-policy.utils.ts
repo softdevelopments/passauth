@@ -5,7 +5,7 @@ import {
 import type {
   NormalizedPasswordPolicy,
   PasswordMetrics,
-  PasswordPolicyOptions,
+  PasswordPolicyConfig,
   PasswordPolicyViolation,
   PasswordPolicyRules,
 } from "../interfaces/password.types";
@@ -198,16 +198,41 @@ const buildViolations = (
 };
 
 export const normalizePasswordPolicy = (
-  options: PasswordPolicyOptions<any> | NormalizedPasswordPolicy,
+  options: PasswordPolicyConfig<any> | NormalizedPasswordPolicy,
 ): NormalizedPasswordPolicy => {
-  if (!options || typeof options !== "object") {
+  if (options !== true && (!options || typeof options !== "object")) {
     throw new PassauthPasswordPolicyConfigurationException(
       "Password policy options are required.",
     );
   }
 
+  if (
+    options !== true &&
+    !("minLength" in options) &&
+    Object.keys(options).length === 0
+  ) {
+    throw new PassauthPasswordPolicyConfigurationException(
+      'Use `true` to enable the default password policy.',
+    );
+  }
+
+  if (
+    options !== true &&
+    !("minLength" in options) &&
+    options.rules &&
+    Object.keys(options.rules).length === 0
+  ) {
+    throw new PassauthPasswordPolicyConfigurationException(
+      '"rules" cannot be empty. Omit it or use `true` for the default password policy.',
+    );
+  }
+
   const rules: PasswordPolicyRules | NormalizedPasswordPolicy =
-    "minLength" in options ? options : (options.rules ?? {});
+    options === true
+      ? {}
+      : "minLength" in options
+        ? options
+        : (options.rules ?? {});
 
   for (const field of INTEGER_FIELDS) {
     const value = rules[field];
@@ -263,7 +288,7 @@ export const normalizePasswordPolicy = (
 
 export const validatePasswordPolicy = (
   password: string,
-  options: PasswordPolicyOptions<any> | NormalizedPasswordPolicy,
+  options: PasswordPolicyConfig<any> | NormalizedPasswordPolicy,
 ) => {
   const policy = normalizePasswordPolicy(options);
   const metrics = getPasswordMetrics(password, policy);
@@ -279,7 +304,7 @@ export const validatePasswordPolicy = (
 
 export const assertPasswordPolicy = (
   password: string,
-  options: PasswordPolicyOptions<any> | NormalizedPasswordPolicy,
+  options: PasswordPolicyConfig<any> | NormalizedPasswordPolicy,
 ) => {
   const result = validatePasswordPolicy(password, options);
 

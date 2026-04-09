@@ -2,6 +2,7 @@ import { PassauthPasswordLoginBlockedException } from "../exceptions/password.ex
 import type {
   LoginAttemptState,
   NormalizedPasswordPolicy,
+  PasswordPolicyConfig,
   PasswordPolicyContext,
   PasswordPolicyContextOperation,
   PasswordLoginAttemptStore,
@@ -23,11 +24,16 @@ export class PasswordPolicyHandler<
   private readonly fallbackPolicy: NormalizedPasswordPolicy;
   private readonly memoryLoginAttemptStore = new Map<string, number>();
   private readonly loginAttemptStore: PasswordLoginAttemptStore<P>;
+  private readonly options: PasswordPolicyOptions<P> | undefined;
 
-  constructor(private readonly options?: PasswordPolicyOptions<P>) {
-    this.isEnabled = Boolean(options);
-    this.fallbackPolicy = normalizePasswordPolicy(options ?? {});
-    this.loginAttemptStore = options?.loginAttemptStore ?? {
+  constructor(options?: PasswordPolicyConfig<P>) {
+    const optionBag =
+      options && typeof options === "object" ? options : undefined;
+
+    this.options = optionBag;
+    this.isEnabled = options !== undefined;
+    this.fallbackPolicy = normalizePasswordPolicy(options ?? true);
+    this.loginAttemptStore = optionBag?.loginAttemptStore ?? {
       get: async (email: string, context) =>
         this.memoryLoginAttemptStore.get(this.buildLoginAttemptStoreKey(email, context)) ??
         0,

@@ -1,5 +1,10 @@
 import type { ResetPasswordEmailParams } from "./email.types";
 
+type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Omit<T, Keys> &
+  {
+    [K in Keys]-?: Required<Pick<T, K>> & Partial<Omit<T, K>>;
+  }[Keys];
+
 export type PasswordPolicyRules = {
   minLength?: number;
   maxLength?: number;
@@ -12,6 +17,8 @@ export type PasswordPolicyRules = {
   allowedSpecialCharacters?: string | readonly string[];
   specialCharacterPattern?: RegExp;
 };
+
+export type PasswordPolicyRulesOptions = RequireAtLeastOne<PasswordPolicyRules>;
 
 export type PasswordPolicyContextOperation =
   | "manual"
@@ -84,12 +91,16 @@ export type PasswordLoginAttemptStore<
 
 export type PasswordPolicyOptions<
   P extends Record<string, unknown> = Record<string, never>,
-> = {
-  rules?: PasswordPolicyRules;
+> = RequireAtLeastOne<{
+  rules?: PasswordPolicyRulesOptions;
   resolvePolicy?: PasswordPolicyResolver<P>;
   resolveLoginAttemptScope?: PasswordLoginAttemptScopeResolver<P>;
   loginAttemptStore?: PasswordLoginAttemptStore<P>;
-};
+}>;
+
+export type PasswordPolicyConfig<
+  P extends Record<string, unknown> = Record<string, never>,
+> = true | PasswordPolicyOptions<P>;
 
 export type NormalizedPasswordPolicy = Readonly<{
   minLength: number;

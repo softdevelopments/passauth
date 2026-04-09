@@ -8,7 +8,7 @@ import type {
   LoginAttemptState,
   NormalizedPasswordPolicy,
   PasswordPolicyContext,
-  PasswordPolicyOptions,
+  PasswordPolicyConfig,
   PasswordValidationResult,
 } from "./password.types";
 
@@ -52,7 +52,7 @@ export type HandlerOptions<
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
   email?: EmailHandlerOptions;
-  passwordPolicy?: PasswordPolicyOptions<PasswordParams>;
+  passwordPolicy?: PasswordPolicyConfig<PasswordParams>;
 };
 
 export type PassauthConfiguration<

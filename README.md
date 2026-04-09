@@ -199,6 +199,20 @@ await passauth.handler.revokeRefreshToken(user.id);
 Password protection is now available directly in `passauth`. The feature is opt-in:
 if you omit `passwordPolicy`, the current register/login behavior stays unchanged.
 
+If you only want the built-in defaults, enable it with `true` instead of `{}`:
+
+```ts
+import { Passauth } from "passauth";
+
+const passauth = Passauth({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  passwordPolicy: true,
+});
+```
+
+For custom rules or advanced behavior, pass an object:
+
 ```ts
 import { Passauth, type User } from "passauth";
 
@@ -286,7 +300,7 @@ type PassauthConfiguration<
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
   email?: EmailHandlerOptions;
-  passwordPolicy?: PasswordPolicyOptions<PasswordParams>;
+  passwordPolicy?: true | PasswordPolicyOptions<PasswordParams>;
   plugins?: P;
 };
 ```
@@ -311,8 +325,8 @@ type PassauthConfiguration<
 - `email` (**optional**) — `EmailHandlerOptions`  
   Enables email confirmation and reset-password flows when provided.
 
-- `passwordPolicy` (**optional**) — `PasswordPolicyOptions`  
-  Enables built-in password validation and failed-login tracking. When set to `{}`, passauth uses the default rule set.
+- `passwordPolicy` (**optional**) — `true | PasswordPolicyOptions`  
+  Enables built-in password validation and failed-login tracking. When set to `true`, passauth uses the default rule set; `{}` is not a valid shortcut.
 
 - `plugins` (**optional**) — `readonly PluginSpec[]`  
   List of plugins that can override/extend the handler API.

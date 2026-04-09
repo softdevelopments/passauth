@@ -8,8 +8,8 @@ import {
 } from "../../src";
 
 describe("Passauth password policy utils", () => {
-  test("uses the default rule values when rules are not provided", () => {
-    const result = validatePasswordPolicy("any password", {});
+  test("uses the default rule values when enabled with true", () => {
+    const result = validatePasswordPolicy("any password", true);
 
     expect(result.success).toBe(false);
     expect(result.violations.map((violation) => violation.code)).toEqual([
@@ -102,6 +102,16 @@ describe("Passauth password policy utils", () => {
   });
 
   test("rejects invalid password policy configurations", () => {
+    expect(() => normalizePasswordPolicy({} as any)).toThrow(
+      PassauthPasswordPolicyConfigurationException,
+    );
+
+    expect(() =>
+      normalizePasswordPolicy({
+        rules: {},
+      } as any),
+    ).toThrow(PassauthPasswordPolicyConfigurationException);
+
     expect(() =>
       normalizePasswordPolicy({
         rules: {
