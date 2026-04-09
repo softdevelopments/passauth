@@ -194,12 +194,11 @@ const newTokens = await passauth.handler.refreshToken(accessToken, refreshToken)
 await passauth.handler.revokeRefreshToken(user.id);
 ```
 
-## Built-in password policy
+## Password policy
 
 Password protection is now available directly in `passauth`. The feature is opt-in:
-if you omit `passwordPolicy`, the current register/login behavior stays unchanged.
 
-If you only want the built-in defaults, enable it with `true` instead of `{}`:
+If you only want the built-in defaults, enable it with `true`:
 
 ```ts
 import { Passauth } from "passauth";
@@ -210,6 +209,19 @@ const passauth = Passauth({
   passwordPolicy: true,
 });
 ```
+
+Default rules used by `passwordPolicy: true`:
+
+- `minLength: 6`
+- `maxLength: 12`
+- `minLowercase: 1`
+- `minUppercase: 1`
+- `minNumbers: 1`
+- `minSpecial: 1`
+- `maxLoginAttempts: 3`
+- `forbidWhitespace: true`
+- `allowedSpecialCharacters: undefined`
+- `specialCharacterPattern: /[^A-Za-z0-9\\s]/`
 
 For custom rules or advanced behavior, pass an object:
 
@@ -251,12 +263,263 @@ When enabled, `passauth` validates passwords during `register(...)` and
 `validatePassword(...)`, `assertPasswordPolicy(...)`, `getPasswordPolicy(...)`,
 `getLoginAttemptState(...)`, and `resetLoginAttempts(...)`.
 
-`passwordPolicy` also supports:
+### Password policy configuration reference
 
-- `rules` for static policy definition
-- `resolvePolicy(context)` for tenant/provider-specific policy resolution
-- `resolveLoginAttemptScope(context)` for scoped login-attempt isolation
-- `loginAttemptStore` to persist failed attempts outside memory
+#### Practical type
+
+The source code uses generics and helper types internally, but for day-to-day usage you can think of `passwordPolicy` like this:
+
+```ts
+type PasswordPolicyRules = {
+  minLength?: number;
+  maxLength?: number;
+  minLowercase?: number;
+  minUppercase?: number;
+  minNumbers?: number;
+  minSpecial?: number;
+  maxLoginAttempts?: number;
+  forbidWhitespace?: boolean;
+  allowedSpecialCharacters?: string | string[];
+  specialCharacterPattern?: RegExp;
+};
+
+type PasswordPolicyContext = {
+  operation:
+    | "manual"
+    | "register"
+    | "login"
+    | "confirmResetPassword"
+    | "getLoginAttemptState"
+    | "resetLoginAttempts";
+  email?: string;
+  password?: string;
+  params?: Record<string, unknown>;
+  emailParams?: {
+    key?: string;
+    linkParams?: Record<string, unknown>;
+  };
+  scopeKey?: string | number;
+};
+
+type PasswordPolicyConfig =
+  | true
+  | {
+      rules?: PasswordPolicyRules;
+      resolvePolicy?: (
+        context: PasswordPolicyContext,
+      ) =>
+        | {
+            rules: PasswordPolicyRules;
+          }
+        | undefined;
+      resolveLoginAttemptScope?: (
+        context: PasswordPolicyContext,
+      ) => string | number | undefined;
+      loginAttemptStore?: {
+        get(
+          email: string,
+          context?: PasswordPolicyContext,
+        ): Promise<number | null | undefined>;
+        set(
+          email: string,
+          attempts: number,
+          context?: PasswordPolicyContext,
+        ): Promise<void>;
+        delete(
+          email: string,
+          context?: PasswordPolicyContext,
+        ): Promise<void>;
+      };
+    };
+```
+
+- `true` enables the built-in default rules exactly as listed above.
+- An object enables custom behavior. Use it when you need custom rules, tenant-specific rules, scoped failed-login counters, or an external store.
+- `{}` is not valid. If you only want defaults, use `true`.
+- At least one of these fields should be present in the object: `rules`, `resolvePolicy`, `resolveLoginAttemptScope`, or `loginAttemptStore`.
+- In the real TypeScript types, `params` is inferred from your custom register/login params. It is shown here as `Record<string, unknown>` only to keep the documentation readable.
+
+#### `rules`
+
+```ts
+type PasswordPolicyRules = {
+  minLength?: number;
+  maxLength?: number;
+  minLowercase?: number;
+  minUppercase?: number;
+  minNumbers?: number;
+  minSpecial?: number;
+  maxLoginAttempts?: number;
+  forbidWhitespace?: boolean;
+  allowedSpecialCharacters?: string | string[];
+  specialCharacterPattern?: RegExp;
+};
+```
+
+- `minLength?: number`
+  Minimum password length. Checked during `register(...)`, `confirmResetPassword(...)`, `validatePassword(...)`, and `assertPasswordPolicy(...)`. Default: `6`.
+- `maxLength?: number`
+  Maximum password length. Default: `12`. Runtime also accepts `Number.POSITIVE_INFINITY` if you do not want an upper limit.
+- `minLowercase?: number`
+  Minimum number of lowercase letters required. Default: `1`.
+- `minUppercase?: number`
+  Minimum number of uppercase letters required. Default: `1`.
+- `minNumbers?: number`
+  Minimum number of numeric characters required. Default: `1`.
+- `minSpecial?: number`
+  Minimum number of special characters required. What counts as a special character depends on `allowedSpecialCharacters` or, if that is not set, `specialCharacterPattern`. Default: `1`.
+- `maxLoginAttempts?: number`
+  Maximum number of failed login attempts allowed before `login(...)` starts throwing `PassauthPasswordLoginBlockedException`. Successful login resets the counter, and you can also clear it manually with `resetLoginAttempts(...)`. Default: `3`.
+- `forbidWhitespace?: boolean`
+  When `true`, passwords containing spaces, tabs, or other whitespace characters are rejected. Default: `true`.
+- `allowedSpecialCharacters?: string | string[]`
+  Optional allow-list for special characters. When provided, only the listed characters count as valid special characters, and other special characters are rejected. Each entry must be a single non-alphanumeric, non-whitespace character. Example: `"!@#"` or `["!", "@", "#"]`. Default: `undefined`.
+- `specialCharacterPattern?: RegExp`
+  Regular expression used to detect special characters when `allowedSpecialCharacters` is not provided. Default: `/[^A-Za-z0-9\s]/`.
+
+All numeric rule fields must be non-negative integers. `maxLoginAttempts` must be greater than `0`.
+
+#### Callback context
+
+```ts
+type PasswordPolicyContext = {
+  operation:
+    | "manual"
+    | "register"
+    | "login"
+    | "confirmResetPassword"
+    | "getLoginAttemptState"
+    | "resetLoginAttempts";
+  email?: string;
+  password?: string;
+  params?: Record<string, unknown>;
+  emailParams?: {
+    key?: string;
+    linkParams?: Record<string, unknown>;
+  };
+  scopeKey?: string | number;
+};
+```
+
+- `operation`
+  Tells you which flow is currently running. This is the main switch used inside `resolvePolicy` and `resolveLoginAttemptScope`.
+- `email`
+  The email involved in the current operation, when available.
+- `password`
+  The password being validated, when available.
+- `params`
+  Extra params passed to `register(...)` or `login(...)`. This is usually where tenant, organization, provider, or workspace identifiers live.
+- `emailParams`
+  Email-related params used in password reset flows.
+- `scopeKey`
+  The resolved login-attempt scope. You can pass it directly when calling handler methods, or let `resolveLoginAttemptScope` compute it for you.
+
+#### Callback fields
+
+```ts
+resolvePolicy?: (
+  context: PasswordPolicyContext,
+) =>
+  | {
+      rules: PasswordPolicyRules;
+    }
+  | undefined;
+
+resolveLoginAttemptScope?: (
+  context: PasswordPolicyContext,
+) => string | number | undefined;
+
+loginAttemptStore?: {
+  get(
+    email: string,
+    context?: PasswordPolicyContext,
+  ): Promise<number | null | undefined>;
+  set(
+    email: string,
+    attempts: number,
+    context?: PasswordPolicyContext,
+  ): Promise<void>;
+  delete(
+    email: string,
+    context?: PasswordPolicyContext,
+  ): Promise<void>;
+};
+```
+
+- `resolvePolicy(context)`
+  Return a different rules object for a specific context. In practice, most applications return `{ rules: ... }` for special cases and `undefined` for everything else.
+- `resolveLoginAttemptScope(context)`
+  Return a scope key such as `tenantId`, `provider`, or `workspaceId` so the same email can have separate failed-login counters in different scopes.
+- `loginAttemptStore.get(email, context)`
+  Reads the current failed-attempt counter for the normalized email and resolved scope.
+- `loginAttemptStore.set(email, attempts, context)`
+  Persists the new failed-attempt counter after an invalid login.
+- `loginAttemptStore.delete(email, context)`
+  Clears the stored counter after a successful login or an explicit `resetLoginAttempts(...)`.
+
+#### Advanced example
+
+```ts
+import { Passauth, type User } from "passauth";
+
+type AuthParams = {
+  tenantId: string;
+};
+
+const passauth = Passauth<User, AuthParams>({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  passwordPolicy: {
+    rules: {
+      minLength: 10,
+      maxLength: 64,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSpecial: 1,
+      maxLoginAttempts: 5,
+      forbidWhitespace: true,
+    },
+    resolvePolicy: ({ operation, params }) => {
+      if (operation === "register" && params?.tenantId === "enterprise") {
+        return {
+          rules: {
+            minLength: 14,
+            maxLength: 64,
+            minLowercase: 1,
+            minUppercase: 1,
+            minNumbers: 1,
+            minSpecial: 1,
+            maxLoginAttempts: 3,
+            forbidWhitespace: true,
+          },
+        };
+      }
+
+      return undefined;
+    },
+    resolveLoginAttemptScope: ({ params }) => params?.tenantId,
+    loginAttemptStore: {
+      async get(email, context) {
+        const raw = await redis.get(
+          `login-attempts:${context?.scopeKey ?? "global"}:${email}`,
+        );
+
+        return raw === null ? 0 : Number(raw);
+      },
+      async set(email, attempts, context) {
+        await redis.set(
+          `login-attempts:${context?.scopeKey ?? "global"}:${email}`,
+          attempts,
+        );
+      },
+      async delete(email, context) {
+        await redis.del(`login-attempts:${context?.scopeKey ?? "global"}:${email}`);
+      },
+    },
+  },
+});
+```
 
 ## API overview
 
@@ -272,45 +535,52 @@ When enabled, `passauth` validates passwords during `register(...)` and
 ### Passauth initialization API (`Passauth(config)`)
 
 ```ts
-function Passauth<
-  U extends User,
-  PasswordParams extends Record<string, unknown> = Record<string, never>,
-  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[] = readonly PluginSpec<
-    U,
-    PassauthHandlerInt<U>,
-    any
-  >[]
->(config: PassauthConfiguration<U, P, PasswordParams>): {
-  handler: Omit<ComposeAug<PassauthHandler<U>, P>, "_aux">;
-  plugins: Record<string, any>;
-}
+const passauth = Passauth({
+  secretKey: "your-secret",
+  repo,
+  saltingRounds: 10,
+  accessTokenExpirationMs: 15 * 60 * 1000,
+  refreshTokenExpirationMs: 7 * 24 * 60 * 60 * 1000,
+  email,
+  passwordPolicy,
+  plugins,
+});
 ```
 
-#### `PassauthConfiguration<U, P, PasswordParams>`
+Simplified config shape:
 
 ```ts
-type PassauthConfiguration<
-  U extends User,
-  P = undefined,
-  PasswordParams extends Record<string, unknown> = Record<string, never>,
-> = {
+type PassauthConfig = {
   secretKey: string;
-  repo: AuthRepo<U>;
+  repo: AuthRepo;
   saltingRounds?: number;
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
   email?: EmailHandlerOptions;
-  passwordPolicy?: true | PasswordPolicyOptions<PasswordParams>;
-  plugins?: P;
+  passwordPolicy?: PasswordPolicyConfig;
+  plugins?: unknown[];
 };
 ```
+
+Simplified return value:
+
+```ts
+type PassauthInstance = {
+  handler: PassauthHandler;
+  plugins: Record<string, { handler: unknown }>;
+};
+```
+
+- You normally do not need to write generic types manually. TypeScript usually infers them from your `repo`, your extra params, and your plugins.
+- `handler` is the main auth API you use in the app.
+- `plugins` is an object keyed by plugin name, with each plugin exposing its own `handler`.
 
 #### Configuration fields (detailed)
 
 - `secretKey` (**required**) — `string`  
   Secret used to sign and validate JWT access tokens.
 
-- `repo` (**required**) — `AuthRepo<U>`  
+- `repo` (**required**) — `AuthRepo`  
   Your persistence adapter used by auth operations (lookup user, create user, optional token cache).
 
 - `saltingRounds` (**optional**) — `number` (default: `10`)  
@@ -325,10 +595,10 @@ type PassauthConfiguration<
 - `email` (**optional**) — `EmailHandlerOptions`  
   Enables email confirmation and reset-password flows when provided.
 
-- `passwordPolicy` (**optional**) — `true | PasswordPolicyOptions`  
+- `passwordPolicy` (**optional**) — `PasswordPolicyConfig`  
   Enables built-in password validation and failed-login tracking. When set to `true`, passauth uses the default rule set; `{}` is not a valid shortcut.
 
-- `plugins` (**optional**) — `readonly PluginSpec[]`  
+- `plugins` (**optional**) — `array`  
   List of plugins that can override/extend the handler API.
 
 #### Return value of `Passauth(config)`
