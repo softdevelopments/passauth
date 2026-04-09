@@ -25,30 +25,36 @@ const passauthConfig: PassauthConfiguration<User> = {
   repo: repoMock,
 };
 
-describe("Passauth - Configuration", () => {
-  it("Should throw error if required option is not provided", () => {
-    expect(() =>
-      Passauth({ ...passauthConfig, secretKey: undefined } as any),
-    ).toThrow(PassauthMissingConfigurationException);
-    expect(() =>
-      Passauth({ ...passauthConfig, secretKey: undefined } as any),
-    ).toThrow("Passauth exception: secretKey option is required");
-
-    expect(() =>
-      Passauth({ ...passauthConfig, repo: undefined } as any),
-    ).toThrow(PassauthMissingConfigurationException);
-    expect(() =>
-      Passauth({ ...passauthConfig, repo: undefined } as any),
-    ).toThrow("Passauth exception: repo option is required");
-  });
-
-  it("Should init correctly if only minimun config is provided", () => {
-    const passauth = Passauth({
-      secretKey: "secretKey",
-      repo: repoMock,
+describe("Passauth configuration", () => {
+  describe("required fields", () => {
+    it("throws when secretKey is missing", () => {
+      expect(() =>
+        Passauth({ ...passauthConfig, secretKey: undefined } as any),
+      ).toThrow(PassauthMissingConfigurationException);
+      expect(() =>
+        Passauth({ ...passauthConfig, secretKey: undefined } as any),
+      ).toThrow("Passauth exception: secretKey option is required");
     });
 
-    expect(passauth).toBeDefined();
-    expect(passauth.handler).toBeDefined();
+    it("throws when repo is missing", () => {
+      expect(() =>
+        Passauth({ ...passauthConfig, repo: undefined } as any),
+      ).toThrow(PassauthMissingConfigurationException);
+      expect(() =>
+        Passauth({ ...passauthConfig, repo: undefined } as any),
+      ).toThrow("Passauth exception: repo option is required");
+    });
+  });
+
+  describe("minimal setup", () => {
+    it("initializes with only the required configuration", () => {
+      const passauth = Passauth({
+        secretKey: "secretKey",
+        repo: repoMock,
+      });
+
+      expect(passauth).toBeDefined();
+      expect(passauth.handler).toBeDefined();
+    });
   });
 });

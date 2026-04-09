@@ -42,7 +42,7 @@ const repoMock: AuthRepo<User> = {
   createUser: async (_params) => userData,
 };
 
-describe("Passauth:Login", () => {
+describe("Passauth with email configured", () => {
   class MockEmailClient implements EmailClient {
     async send(_emailData: SendEmailArgs) {}
   }
@@ -80,135 +80,139 @@ describe("Passauth:Login", () => {
     jest.clearAllTimers();
   });
 
-  test("VerifyAccessToken - Should throw error if access token is expired", async () => {
-    const passauth = Passauth(passauthConfig);
+  describe("login", () => {
+    test("injects user data in the access token when jwtUserFields is provided", async () => {
+      const passauth = Passauth(passauthConfig);
+      const sut = passauth.handler;
 
-    const loginResponse = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
+      const loginResponse = await sut.login(
+        {
+          email: userData.email,
+          password: userData.password,
+        },
+        { jwtUserFields: ["email"] },
+      );
+
+      const decodedToken = passauth.handler.verifyAccessToken(
+        loginResponse.accessToken,
+      );
+
+      expect(decodedToken).toEqual(
+        expect.objectContaining({
+          data: {
+            email: userData.email,
+          },
+        }),
+      );
     });
-
-    jest.advanceTimersByTime(DEFAULT_JWT_EXPIRATION_MS + 1);
-
-    expect(() =>
-      passauth.handler.verifyAccessToken(loginResponse.accessToken),
-    ).toThrow(PassauthInvalidAccessTokenException);
   });
 
-  test("Login - Access token should inject user data when jwtUserFields is provided", async () => {
-    const passauth = Passauth(passauthConfig);
-    const sut = passauth.handler;
+  describe("verifyAccessToken", () => {
+    test("throws when the access token is expired", async () => {
+      const passauth = Passauth(passauthConfig);
 
-    const loginResponse = await sut.login(
-      {
+      const loginResponse = await passauth.handler.login({
         email: userData.email,
         password: userData.password,
-      },
-      { jwtUserFields: ["email"] },
-    );
+      });
 
-    const decodedToken = passauth.handler.verifyAccessToken(
-      loginResponse.accessToken,
-    );
+      jest.advanceTimersByTime(DEFAULT_JWT_EXPIRATION_MS + 1);
 
-    expect(decodedToken).toEqual(
-      expect.objectContaining({
-        data: {
-          email: userData.email,
-        },
-      }),
-    );
-  });
-
-  test("VerifyAccessToken - should return decoded token", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    const loginResponse = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
+      expect(() =>
+        passauth.handler.verifyAccessToken(loginResponse.accessToken),
+      ).toThrow(PassauthInvalidAccessTokenException);
     });
 
-    const decodedToken = passauth.handler.verifyAccessToken(
-      loginResponse.accessToken,
-    );
+    test("returns the decoded token", async () => {
+      const passauth = Passauth(passauthConfig);
 
-    expect(decodedToken).toHaveProperty("sub");
-    expect(decodedToken).toHaveProperty("exp");
-    expect(decodedToken).toHaveProperty("jti");
-    expect(decodedToken).toHaveProperty("iat");
+      const loginResponse = await passauth.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
 
-    expect(decodedToken.sub).toBe(userData.id);
-  });
-
-  test("RefreshToken - should be able to change tokens", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    const loginResponse = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
-    });
-
-    const newTokens = await passauth.handler.refreshToken(
-      loginResponse.accessToken,
-      loginResponse.refreshToken,
-    );
-
-    expect(newTokens).toHaveProperty("accessToken");
-    expect(newTokens).toHaveProperty("refreshToken");
-
-    expect(loginResponse.accessToken).not.toBe(newTokens.accessToken);
-    expect(loginResponse.refreshToken).not.toBe(newTokens.refreshToken);
-  });
-
-  test("RefreshToken - Should throw error if refresh token is invalid", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    const loginResponse = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
-    });
-
-    await expect(
-      passauth.handler.refreshToken(
+      const decodedToken = passauth.handler.verifyAccessToken(
         loginResponse.accessToken,
-        crypto.randomBytes(16).toString("hex"),
-      ),
-    ).rejects.toThrow();
+      );
+
+      expect(decodedToken).toHaveProperty("sub");
+      expect(decodedToken).toHaveProperty("exp");
+      expect(decodedToken).toHaveProperty("jti");
+      expect(decodedToken).toHaveProperty("iat");
+      expect(decodedToken.sub).toBe(userData.id);
+    });
   });
 
-  test("RefreshToken - Should throw error if refresh token is expired", async () => {
-    const passauth = Passauth(passauthConfig);
+  describe("refreshToken", () => {
+    test("rotates the token pair", async () => {
+      const passauth = Passauth(passauthConfig);
 
-    const loginResponse = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
-    });
+      const loginResponse = await passauth.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
 
-    jest.advanceTimersByTime(DEFAULT_REFRESH_EXPIRATION_TOKEN_MS + 1);
-
-    await expect(
-      passauth.handler.refreshToken(
+      const newTokens = await passauth.handler.refreshToken(
         loginResponse.accessToken,
         loginResponse.refreshToken,
-      ),
-    ).rejects.toThrow(PassauthInvalidRefreshTokenException);
-  });
+      );
 
-  test("RefreshToken - Revoked token should not be able to change tokens", async () => {
-    const passauth = Passauth(passauthConfig);
-
-    const loginResponse = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
+      expect(newTokens).toHaveProperty("accessToken");
+      expect(newTokens).toHaveProperty("refreshToken");
+      expect(loginResponse.accessToken).not.toBe(newTokens.accessToken);
+      expect(loginResponse.refreshToken).not.toBe(newTokens.refreshToken);
     });
 
-    passauth.handler.revokeRefreshToken(userData.id);
+    test("throws when the refresh token is invalid", async () => {
+      const passauth = Passauth(passauthConfig);
 
-    await expect(
-      passauth.handler.refreshToken(
-        loginResponse.accessToken,
-        loginResponse.refreshToken,
-      ),
-    ).rejects.toThrow(PassauthInvalidRefreshTokenException);
+      const loginResponse = await passauth.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      await expect(
+        passauth.handler.refreshToken(
+          loginResponse.accessToken,
+          crypto.randomBytes(16).toString("hex"),
+        ),
+      ).rejects.toThrow();
+    });
+
+    test("throws when the refresh token is expired", async () => {
+      const passauth = Passauth(passauthConfig);
+
+      const loginResponse = await passauth.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      jest.advanceTimersByTime(DEFAULT_REFRESH_EXPIRATION_TOKEN_MS + 1);
+
+      await expect(
+        passauth.handler.refreshToken(
+          loginResponse.accessToken,
+          loginResponse.refreshToken,
+        ),
+      ).rejects.toThrow(PassauthInvalidRefreshTokenException);
+    });
+
+    test("throws when the refresh token was revoked", async () => {
+      const passauth = Passauth(passauthConfig);
+
+      const loginResponse = await passauth.handler.login({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      passauth.handler.revokeRefreshToken(userData.id);
+
+      await expect(
+        passauth.handler.refreshToken(
+          loginResponse.accessToken,
+          loginResponse.refreshToken,
+        ),
+      ).rejects.toThrow(PassauthInvalidRefreshTokenException);
+    });
   });
 });

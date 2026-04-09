@@ -26,7 +26,7 @@ const userData = {
   isBlocked: false,
 };
 
-describe("Plugin", () => {
+describe("Passauth plugins", () => {
   const repoMock: AuthRepo<User> = {
     getUser: async (_email) => ({
       ...userData,
@@ -49,132 +49,136 @@ describe("Plugin", () => {
     jest.clearAllTimers();
   });
 
-  test("Should be able to override Passauth handler methods", async () => {
-    type LoginOverride<U extends User> = {
-      login(
-        p: LoginParams,
-        jwtUserFields?: Array<keyof U>,
-      ): Promise<{
-        loginText: string;
-        accessToken: string;
-        refreshToken: string;
-      }>;
-    };
+  describe("handler customization", () => {
+    test("overrides existing handler methods", async () => {
+      type LoginOverride<U extends User> = {
+        login(
+          p: LoginParams,
+          jwtUserFields?: Array<keyof U>,
+        ): Promise<{
+          loginText: string;
+          accessToken: string;
+          refreshToken: string;
+        }>;
+      };
 
-    const customPlugin = (config: { loginText: string }) => {
-      return {
-        name: "CustomPlugin",
-        handlerInit: ({ passauthHandler }: SharedComponents<User>) => {
-          passauthHandler.login = async (_params: LoginParams) => {
-            return {
-              loginText: config.loginText,
-              accessToken: "ACCESS_TOKEN",
-              refreshToken: "REFRESH_TOKEN",
+      const customPlugin = (config: { loginText: string }) => {
+        return {
+          name: "CustomPlugin",
+          handlerInit: ({ passauthHandler }: SharedComponents<User>) => {
+            passauthHandler.login = async (_params: LoginParams) => {
+              return {
+                loginText: config.loginText,
+                accessToken: "ACCESS_TOKEN",
+                refreshToken: "REFRESH_TOKEN",
+              };
             };
-          };
-        },
-        __types: (_h: PassauthHandlerInt<User>) =>
-          undefined as unknown as LoginOverride<User>,
+          },
+          __types: (_h: PassauthHandlerInt<User>) =>
+            undefined as unknown as LoginOverride<User>,
+        };
       };
-    };
 
-    const passauth = Passauth({
-      ...passauthConfig,
-      plugins: [
-        customPlugin({
-          loginText: "Testing",
-        }),
-      ] as const,
-    });
+      const passauth = Passauth({
+        ...passauthConfig,
+        plugins: [
+          customPlugin({
+            loginText: "Testing",
+          }),
+        ] as const,
+      });
 
-    const result = await passauth.handler.login({
-      email: userData.email,
-      password: userData.password,
-    });
-
-    expect(result.loginText).toBe("Testing");
-    expect(result.accessToken).toBe("ACCESS_TOKEN");
-    expect(result.refreshToken).toBe("REFRESH_TOKEN");
-  });
-
-  test("Should be able to extend Passauth handler methods", async () => {
-    const customPlugin = (config: { passwordRegex: RegExp }) => {
-      return {
-        name: "CustomPlugin",
-        handlerInit: ({ passauthHandler }: SharedComponents<User>) => {
-          const login = passauthHandler.login.bind(passauthHandler);
-
-          passauthHandler.login = async (params: LoginParams) => {
-            if (!params.password.match(config.passwordRegex)) {
-              throw new Error("Invalid password");
-            }
-
-            return login(params);
-          };
-        },
-      };
-    };
-
-    const passauth = Passauth({
-      ...passauthConfig,
-      plugins: [
-        customPlugin({
-          passwordRegex: /\d{4}[a-zA-Z]{4}/,
-        }),
-      ] as const,
-    });
-
-    await expect(
-      passauth.handler.login({
+      const result = await passauth.handler.login({
         email: userData.email,
         password: userData.password,
-      }),
-    ).rejects.toThrow("Invalid password");
+      });
 
-    jest.spyOn(repoMock, "getUser").mockImplementationOnce(async (_email) => ({
-      ...userData,
-      password: await hash("1234pass", DEFAULT_SALTING_ROUNDS),
-    }));
+      expect(result.loginText).toBe("Testing");
+      expect(result.accessToken).toBe("ACCESS_TOKEN");
+      expect(result.refreshToken).toBe("REFRESH_TOKEN");
+    });
 
-    expect(
-      await passauth.handler.login({
-        email: userData.email,
-        password: "1234pass",
-      }),
-    ).toEqual(
-      expect.objectContaining({
-        accessToken: expect.any(String),
-        refreshToken: expect.any(String),
-      }),
-    );
+    test("extends existing handler methods", async () => {
+      const customPlugin = (config: { passwordRegex: RegExp }) => {
+        return {
+          name: "CustomPlugin",
+          handlerInit: ({ passauthHandler }: SharedComponents<User>) => {
+            const login = passauthHandler.login.bind(passauthHandler);
+
+            passauthHandler.login = async (params: LoginParams) => {
+              if (!params.password.match(config.passwordRegex)) {
+                throw new Error("Invalid password");
+              }
+
+              return login(params);
+            };
+          },
+        };
+      };
+
+      const passauth = Passauth({
+        ...passauthConfig,
+        plugins: [
+          customPlugin({
+            passwordRegex: /\d{4}[a-zA-Z]{4}/,
+          }),
+        ] as const,
+      });
+
+      await expect(
+        passauth.handler.login({
+          email: userData.email,
+          password: userData.password,
+        }),
+      ).rejects.toThrow("Invalid password");
+
+      jest.spyOn(repoMock, "getUser").mockImplementationOnce(async (_email) => ({
+        ...userData,
+        password: await hash("1234pass", DEFAULT_SALTING_ROUNDS),
+      }));
+
+      expect(
+        await passauth.handler.login({
+          email: userData.email,
+          password: "1234pass",
+        }),
+      ).toEqual(
+        expect.objectContaining({
+          accessToken: expect.any(String),
+          refreshToken: expect.any(String),
+        }),
+      );
+    });
   });
 
-  test("Should be able to access config Passauth handler methods", async () => {
-    type ConfigAPI = { getConfig(): { saltingRounds: number } };
-    const customPlugin = (_cfg: {
-      passwordRegex: RegExp;
-    }): PluginSpec<User, PassauthHandlerInt<User>, ConfigAPI> => ({
-      name: "CustomPlugin",
-      handlerInit: ({ passauthHandler }) => {
-        (passauthHandler as any).getConfig = () => ({
-          saltingRounds: (passauthHandler as any)._aux.config.SALTING_ROUNDS,
-        });
-      },
-      __types: (_h: PassauthHandlerInt<User>) =>
-        undefined as any as PassauthHandlerInt<User> & ConfigAPI,
-    });
+  describe("handler internals", () => {
+    test("exposes config through plugin-defined APIs", async () => {
+      type ConfigAPI = { getConfig(): { saltingRounds: number } };
+      const customPlugin = (_cfg: {
+        passwordRegex: RegExp;
+      }): PluginSpec<User, PassauthHandlerInt<User>, ConfigAPI> => ({
+        name: "CustomPlugin",
+        handlerInit: ({ passauthHandler }) => {
+          (passauthHandler as any).getConfig = () => ({
+            saltingRounds: (passauthHandler as any)._aux.config.SALTING_ROUNDS,
+          });
+        },
+        __types: (_h: PassauthHandlerInt<User>) =>
+          undefined as any as PassauthHandlerInt<User> & ConfigAPI,
+      });
 
-    const passauth = Passauth({
-      ...passauthConfig,
-      plugins: [
-        customPlugin({
-          passwordRegex: /\d{4}[a-zA-Z]{4}/,
-        }),
-      ] as const,
-    });
+      const passauth = Passauth({
+        ...passauthConfig,
+        plugins: [
+          customPlugin({
+            passwordRegex: /\d{4}[a-zA-Z]{4}/,
+          }),
+        ] as const,
+      });
 
-    expect(passauth.handler.getConfig()).toEqual({
-      saltingRounds: DEFAULT_SALTING_ROUNDS,
+      expect(passauth.handler.getConfig()).toEqual({
+        saltingRounds: DEFAULT_SALTING_ROUNDS,
+      });
     });
   });
 });
