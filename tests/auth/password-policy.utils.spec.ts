@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, test } from "@jest/globals";
 import {
   PassauthPasswordPolicyConfigurationException,

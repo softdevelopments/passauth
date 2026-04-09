@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, test } from "@jest/globals";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, expect, test } from "@jest/globals";
 import bcrypt from "bcrypt";
 import {
   Passauth,
