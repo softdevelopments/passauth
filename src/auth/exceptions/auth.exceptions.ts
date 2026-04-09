@@ -18,6 +18,7 @@ export enum PassauthExceptionContext {
   CONFIG = "config",
   LOGIN = "login",
   EMAIL_CONFIRMATION = "email confirmation",
+  PASSWORD_POLICY = "password policy",
 }
 
 export class PassauthMissingConfigurationException extends PassauthException {

@@ -7,6 +7,7 @@ It provides a ready-to-use auth handler with:
 - Login with JWT access token + refresh token flow
 - Refresh token rotation and revocation
 - Optional email confirmation and password reset flows
+- Optional built-in password policy validation and login attempt blocking
 - Plugin support to extend or override handler behavior with type safety
 
 ## Installation
@@ -28,6 +29,9 @@ import {
   verifyAccessToken,
   decodeAccessToken,
   generateToken,
+  validatePasswordPolicy,
+  normalizePasswordPolicy,
+  assertPasswordPolicy,
   type AuthJwtPayload,
 } from "passauth/auth/utils";
 ```
@@ -190,6 +194,632 @@ const newTokens = await passauth.handler.refreshToken(accessToken, refreshToken)
 await passauth.handler.revokeRefreshToken(user.id);
 ```
 
+## Multi-tenant applications
+
+`passauth` does not impose a tenant model. Instead, it lets your application
+carry tenant context through the auth flow and decide how that context should be
+used inside your repository, your email callbacks, and your password policy.
+
+This works well for applications where:
+
+- The same email can exist in multiple tenants
+- Each tenant has its own password policy
+- Failed login attempts must be isolated per tenant
+- Email confirmation and reset-password links need tenant-specific routing
+
+### How tenant context moves through passauth
+
+#### `register(params)`
+
+Any extra fields you pass to `register(...)` are forwarded to:
+
+- `repo.getUser(...)` during the duplicate-user check
+- `repo.createUser(...)` when the user is created
+
+This means you can scope uniqueness by tenant instead of by email only.
+
+#### `login(params)`
+
+Any extra fields you pass to `login(...)` are forwarded to `repo.getUser(...)`.
+This is the main mechanism used to resolve the correct tenant-specific user.
+
+#### Email flows
+
+`sendConfirmPasswordEmail(...)`, `confirmEmail(...)`,
+`sendResetPasswordEmail(...)`, and `confirmResetPassword(...)` do not receive
+the full register/login params object. Instead, they receive:
+
+- `emailParams.key`
+- `emailParams.linkParams`
+
+Use `key` as the tenant-aware token scope, and use `linkParams` to build links
+that let your frontend recover the correct tenant context.
+
+If `key` is omitted, passauth defaults it to the email itself. That is fine for
+single-tenant apps, but usually not enough when the same email can exist in
+multiple tenants.
+
+#### Password policy
+
+If you enable `passwordPolicy`, tenant context can also drive:
+
+- Which rules apply via `resolvePolicy(...)`
+- Which failed-login bucket is used via `resolveLoginAttemptScope(...)`
+
+For register/login flows, that context comes from `params`.
+For email-based flows such as `confirmResetPassword(...)`, it can come from
+`emailParams.key`.
+
+### Recommended tenant model
+
+In practice, multi-tenant setups are simplest when you follow these rules:
+
+- Treat `tenantId` as part of the user identity in your repository lookups
+- Normalize emails before building tenant-aware keys
+- Make `user.id` globally unique across all tenants
+- Pass the same tenant scope consistently in register, login, and email flows
+- Include tenant information in JWT payload `data` when downstream services need it
+
+That third point is especially important:
+
+- Access tokens use `user.id` as JWT `sub`
+- Refresh-token caching and revocation are also keyed by `user.id`
+
+If two tenants can produce the same `user.id` in a shared auth system, token
+cache collisions become possible. In shared infrastructures, prefer globally
+unique IDs such as UUIDs, ULIDs, or tenant-prefixed string IDs.
+
+### End-to-end example
+
+```ts
+import crypto from "node:crypto";
+import { Passauth, type AuthRepo, type EmailHandlerOptions, type User } from "passauth";
+
+type TenantId = "startup" | "enterprise";
+
+type TenantParams = {
+  tenantId: TenantId;
+};
+
+type TenantUser = User &
+  TenantParams & {
+    name: string;
+  };
+
+const users = new Map<string, TenantUser>();
+
+const userKey = (email: string, tenantId: TenantId) =>
+  `${tenantId}:${email.trim().toLowerCase()}`;
+
+const repo: AuthRepo<TenantUser> = {
+  async getUser(params) {
+    const tenantId = (params as Partial<TenantUser>).tenantId;
+
+    if (!params.email || !tenantId) {
+      return null;
+    }
+
+    return users.get(userKey(params.email, tenantId)) ?? null;
+  },
+
+  async createUser(params) {
+    const tenantId = (params as TenantParams).tenantId;
+    const user: TenantUser = {
+      id: crypto.randomUUID(),
+      email: params.email.trim().toLowerCase(),
+      password: params.password,
+      isBlocked: false,
+      emailVerified: false,
+      tenantId,
+      name: (params as { name?: string }).name ?? "New user",
+    };
+
+    users.set(userKey(user.email, tenantId), user);
+    return user;
+  },
+};
+
+const email: EmailHandlerOptions = {
+  senderName: "Acme",
+  senderEmail: "no-reply@acme.test",
+  client: yourEmailClient,
+  services: {
+    async createConfirmEmailLink(_email, token, linkParams) {
+      const tenantId = String(linkParams?.tenantId ?? "");
+
+      return `https://app.acme.test/${tenantId}/confirm-email?token=${token}`;
+    },
+    async createResetPasswordLink(_email, token, linkParams) {
+      const tenantId = String(linkParams?.tenantId ?? "");
+
+      return `https://app.acme.test/${tenantId}/reset-password?token=${token}`;
+    },
+  },
+  repo: {
+    async confirmEmail(email, emailParams) {
+      const tenantId = emailParams?.key as TenantId | undefined;
+
+      if (!tenantId) {
+        return false;
+      }
+
+      const existingUser = users.get(userKey(email, tenantId));
+
+      if (!existingUser) {
+        return false;
+      }
+
+      users.set(userKey(email, tenantId), {
+        ...existingUser,
+        emailVerified: true,
+      });
+
+      return true;
+    },
+    async resetPassword(email, password, emailParams) {
+      const tenantId = emailParams?.key as TenantId | undefined;
+
+      if (!tenantId) {
+        return false;
+      }
+
+      const existingUser = users.get(userKey(email, tenantId));
+
+      if (!existingUser) {
+        return false;
+      }
+
+      users.set(userKey(email, tenantId), {
+        ...existingUser,
+        password,
+      });
+
+      return true;
+    },
+  },
+};
+
+const passauth = Passauth<TenantUser, TenantParams>({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  email,
+  passwordPolicy: {
+    rules: {
+      minLength: 10,
+      maxLength: 64,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSpecial: 1,
+      maxLoginAttempts: 5,
+    },
+    resolvePolicy: ({ params, emailParams }) => {
+      const tenantId =
+        params?.tenantId ?? (emailParams?.key as TenantId | undefined);
+
+      if (tenantId !== "enterprise") {
+        return undefined;
+      }
+
+      return {
+        rules: {
+          minLength: 14,
+          maxLength: 64,
+          minLowercase: 1,
+          minUppercase: 1,
+          minNumbers: 1,
+          minSpecial: 1,
+          maxLoginAttempts: 3,
+        },
+      };
+    },
+    resolveLoginAttemptScope: ({ params, emailParams }) =>
+      params?.tenantId ?? emailParams?.key,
+  },
+});
+
+await passauth.handler.register({
+  email: "john@example.com",
+  password: "StartupPass1!",
+  name: "John Startup",
+  tenantId: "startup",
+});
+
+await passauth.handler.register({
+  email: "john@example.com",
+  password: "EnterprisePass1!",
+  name: "John Enterprise",
+  tenantId: "enterprise",
+});
+
+const tokens = await passauth.handler.login(
+  {
+    email: "john@example.com",
+    password: "EnterprisePass1!",
+    tenantId: "enterprise",
+  },
+  { jwtUserFields: ["tenantId", "name"] },
+);
+
+await passauth.handler.sendResetPasswordEmail("john@example.com", {
+  key: "enterprise",
+  linkParams: {
+    tenantId: "enterprise",
+  },
+});
+
+const tokenFromEmail = "...";
+
+await passauth.handler.confirmResetPassword(
+  "john@example.com",
+  tokenFromEmail,
+  "NewEnterprisePass1!",
+  {
+    key: "enterprise",
+    linkParams: {
+      tenantId: "enterprise",
+    },
+  },
+);
+```
+
+### What the example is doing
+
+- `repo.getUser(...)` uses `tenantId + email` to find the correct identity
+- `register(...)` can create the same email in multiple tenants because the duplicate check receives the same tenant-aware params
+- `login(...)` uses those same params to authenticate against the correct tenant record
+- `emailParams.key` is set to the tenant ID, so confirmation and reset tokens do not collide between tenants
+- `linkParams.tenantId` is used only for link construction and frontend routing
+- `resolvePolicy(...)` applies a stricter password policy to the `enterprise` tenant
+- `resolveLoginAttemptScope(...)` isolates failed-login counters per tenant
+
+### Common mistakes to avoid
+
+- Looking up users by `email` only when your app allows the same email in multiple tenants
+- Forgetting to pass `emailParams.key` in email confirmation or reset-password flows
+- Using one tenant identifier in your frontend link and a different one in `confirmEmail(...)` or `confirmResetPassword(...)`
+- Reusing non-unique numeric IDs across tenants while sharing the same refresh-token cache
+- Scoping password rules by tenant but forgetting to scope failed-login counters too
+
+### Minimal checklist
+
+When adapting an existing single-tenant app, these are usually the only pieces
+you need to make tenant-aware:
+
+1. Add a tenant field such as `tenantId` to your register/login payloads.
+2. Update `repo.getUser(...)` to resolve users by `tenantId + email`.
+3. Update `repo.createUser(...)` to persist the tenant information.
+4. Use `emailParams.key` for confirm/reset flows when the same email can exist in multiple tenants.
+5. If using `passwordPolicy`, implement `resolveLoginAttemptScope(...)` with the tenant identifier.
+6. Ensure `user.id` is globally unique in the environment where tokens are issued.
+
+## Password policy
+
+Password protection is now available directly in `passauth`. The feature is opt-in:
+
+If you only want the built-in defaults, enable it with `true`:
+
+```ts
+import { Passauth } from "passauth";
+
+const passauth = Passauth({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  passwordPolicy: true,
+});
+```
+
+Default rules used by `passwordPolicy: true`:
+
+- `minLength: 6`
+- `maxLength: 12`
+- `minLowercase: 1`
+- `minUppercase: 1`
+- `minNumbers: 1`
+- `minSpecial: 1`
+- `maxLoginAttempts: 3`
+- `forbidWhitespace: true`
+- `allowedSpecialCharacters: undefined`
+- `specialCharacterPattern: /[^A-Za-z0-9\\s]/`
+
+For custom rules or advanced behavior, pass an object:
+
+```ts
+import { Passauth, type User } from "passauth";
+
+type AppUser = User & {
+  name: string;
+};
+
+const passauth = Passauth<AppUser>({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  passwordPolicy: {
+    rules: {
+      minLength: 12,
+      maxLength: 64,
+      minUppercase: 1,
+      minLowercase: 1,
+      minNumbers: 1,
+      minSpecial: 1,
+      maxLoginAttempts: 5,
+      forbidWhitespace: true,
+    },
+  },
+});
+
+await passauth.handler.register({
+  email: "john@example.com",
+  password: "StrongPass1!",
+  name: "John",
+});
+
+const state = await passauth.handler.getLoginAttemptState("john@example.com");
+```
+
+When enabled, `passauth` validates passwords during `register(...)` and
+`confirmResetPassword(...)`, blocks repeated failed logins, and exposes:
+`validatePassword(...)`, `assertPasswordPolicy(...)`, `getPasswordPolicy(...)`,
+`getLoginAttemptState(...)`, and `resetLoginAttempts(...)`.
+
+### Password policy configuration reference
+
+#### Practical type
+
+The source code uses generics and helper types internally, but for day-to-day usage you can think of `passwordPolicy` like this:
+
+```ts
+type PasswordPolicyRules = {
+  minLength?: number;
+  maxLength?: number;
+  minLowercase?: number;
+  minUppercase?: number;
+  minNumbers?: number;
+  minSpecial?: number;
+  maxLoginAttempts?: number;
+  forbidWhitespace?: boolean;
+  allowedSpecialCharacters?: string | string[];
+  specialCharacterPattern?: RegExp;
+};
+
+type PasswordPolicyContext = {
+  operation:
+    | "manual"
+    | "register"
+    | "login"
+    | "confirmResetPassword"
+    | "getLoginAttemptState"
+    | "resetLoginAttempts";
+  email?: string;
+  password?: string;
+  params?: Record<string, unknown>;
+  emailParams?: {
+    key?: string;
+    linkParams?: Record<string, unknown>;
+  };
+  scopeKey?: string | number;
+};
+
+type PasswordPolicyConfig =
+  | true
+  | {
+      rules?: PasswordPolicyRules;
+      resolvePolicy?: (
+        context: PasswordPolicyContext,
+      ) =>
+        | {
+            rules: PasswordPolicyRules;
+          }
+        | undefined;
+      resolveLoginAttemptScope?: (
+        context: PasswordPolicyContext,
+      ) => string | number | undefined;
+      loginAttemptStore?: {
+        get(
+          email: string,
+          context?: PasswordPolicyContext,
+        ): Promise<number | null | undefined>;
+        set(
+          email: string,
+          attempts: number,
+          context?: PasswordPolicyContext,
+        ): Promise<void>;
+        delete(
+          email: string,
+          context?: PasswordPolicyContext,
+        ): Promise<void>;
+      };
+    };
+```
+
+- `true` enables the built-in default rules exactly as listed above.
+- An object enables custom behavior. Use it when you need custom rules, tenant-specific rules, scoped failed-login counters, or an external store.
+- `{}` is not valid. If you only want defaults, use `true`.
+- At least one of these fields should be present in the object: `rules`, `resolvePolicy`, `resolveLoginAttemptScope`, or `loginAttemptStore`.
+- In the real TypeScript types, `params` is inferred from your custom register/login params. It is shown here as `Record<string, unknown>` only to keep the documentation readable.
+
+#### `rules`
+
+```ts
+type PasswordPolicyRules = {
+  minLength?: number;
+  maxLength?: number;
+  minLowercase?: number;
+  minUppercase?: number;
+  minNumbers?: number;
+  minSpecial?: number;
+  maxLoginAttempts?: number;
+  forbidWhitespace?: boolean;
+  allowedSpecialCharacters?: string | string[];
+  specialCharacterPattern?: RegExp;
+};
+```
+
+- `minLength?: number`
+  Minimum password length. Checked during `register(...)`, `confirmResetPassword(...)`, `validatePassword(...)`, and `assertPasswordPolicy(...)`. Default: `6`.
+- `maxLength?: number`
+  Maximum password length. Default: `12`. Runtime also accepts `Number.POSITIVE_INFINITY` if you do not want an upper limit.
+- `minLowercase?: number`
+  Minimum number of lowercase letters required. Default: `1`.
+- `minUppercase?: number`
+  Minimum number of uppercase letters required. Default: `1`.
+- `minNumbers?: number`
+  Minimum number of numeric characters required. Default: `1`.
+- `minSpecial?: number`
+  Minimum number of special characters required. What counts as a special character depends on `allowedSpecialCharacters` or, if that is not set, `specialCharacterPattern`. Default: `1`.
+- `maxLoginAttempts?: number`
+  Maximum number of failed login attempts allowed before `login(...)` starts throwing `PassauthPasswordLoginBlockedException`. Successful login resets the counter, and you can also clear it manually with `resetLoginAttempts(...)`. Default: `3`.
+- `forbidWhitespace?: boolean`
+  When `true`, passwords containing spaces, tabs, or other whitespace characters are rejected. Default: `true`.
+- `allowedSpecialCharacters?: string | string[]`
+  Optional allow-list for special characters. When provided, only the listed characters count as valid special characters, and other special characters are rejected. Each entry must be a single non-alphanumeric, non-whitespace character. Example: `"!@#"` or `["!", "@", "#"]`. Default: `undefined`.
+- `specialCharacterPattern?: RegExp`
+  Regular expression used to detect special characters when `allowedSpecialCharacters` is not provided. Default: `/[^A-Za-z0-9\s]/`.
+
+All numeric rule fields must be non-negative integers. `maxLoginAttempts` must be greater than `0`.
+
+#### Callback context
+
+```ts
+type PasswordPolicyContext = {
+  operation:
+    | "manual"
+    | "register"
+    | "login"
+    | "confirmResetPassword"
+    | "getLoginAttemptState"
+    | "resetLoginAttempts";
+  email?: string;
+  password?: string;
+  params?: Record<string, unknown>;
+  emailParams?: {
+    key?: string;
+    linkParams?: Record<string, unknown>;
+  };
+  scopeKey?: string | number;
+};
+```
+
+- `operation`
+  Tells you which flow is currently running. This is the main switch used inside `resolvePolicy` and `resolveLoginAttemptScope`.
+- `email`
+  The email involved in the current operation, when available.
+- `password`
+  The password being validated, when available.
+- `params`
+  Extra params passed to `register(...)` or `login(...)`. This is usually where tenant, organization, provider, or workspace identifiers live.
+- `emailParams`
+  Email-related params used in password reset flows.
+- `scopeKey`
+  The resolved login-attempt scope. You can pass it directly when calling handler methods, or let `resolveLoginAttemptScope` compute it for you.
+
+#### Callback fields
+
+```ts
+resolvePolicy?: (
+  context: PasswordPolicyContext,
+) =>
+  | {
+      rules: PasswordPolicyRules;
+    }
+  | undefined;
+
+resolveLoginAttemptScope?: (
+  context: PasswordPolicyContext,
+) => string | number | undefined;
+
+loginAttemptStore?: {
+  get(
+    email: string,
+    context?: PasswordPolicyContext,
+  ): Promise<number | null | undefined>;
+  set(
+    email: string,
+    attempts: number,
+    context?: PasswordPolicyContext,
+  ): Promise<void>;
+  delete(
+    email: string,
+    context?: PasswordPolicyContext,
+  ): Promise<void>;
+};
+```
+
+- `resolvePolicy(context)`
+  Return a different rules object for a specific context. In practice, most applications return `{ rules: ... }` for special cases and `undefined` for everything else.
+- `resolveLoginAttemptScope(context)`
+  Return a scope key such as `tenantId`, `provider`, or `workspaceId` so the same email can have separate failed-login counters in different scopes.
+- `loginAttemptStore.get(email, context)`
+  Reads the current failed-attempt counter for the normalized email and resolved scope.
+- `loginAttemptStore.set(email, attempts, context)`
+  Persists the new failed-attempt counter after an invalid login.
+- `loginAttemptStore.delete(email, context)`
+  Clears the stored counter after a successful login or an explicit `resetLoginAttempts(...)`.
+
+#### Advanced example
+
+```ts
+import { Passauth, type User } from "passauth";
+
+type AuthParams = {
+  tenantId: string;
+};
+
+const passauth = Passauth<User, AuthParams>({
+  secretKey: process.env.JWT_SECRET ?? "dev-secret",
+  repo,
+  passwordPolicy: {
+    rules: {
+      minLength: 10,
+      maxLength: 64,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSpecial: 1,
+      maxLoginAttempts: 5,
+      forbidWhitespace: true,
+    },
+    resolvePolicy: ({ operation, params }) => {
+      if (operation === "register" && params?.tenantId === "enterprise") {
+        return {
+          rules: {
+            minLength: 14,
+            maxLength: 64,
+            minLowercase: 1,
+            minUppercase: 1,
+            minNumbers: 1,
+            minSpecial: 1,
+            maxLoginAttempts: 3,
+            forbidWhitespace: true,
+          },
+        };
+      }
+
+      return undefined;
+    },
+    resolveLoginAttemptScope: ({ params }) => params?.tenantId,
+    loginAttemptStore: {
+      async get(email, context) {
+        const raw = await redis.get(
+          `login-attempts:${context?.scopeKey ?? "global"}:${email}`,
+        );
+
+        return raw === null ? 0 : Number(raw);
+      },
+      async set(email, attempts, context) {
+        await redis.set(
+          `login-attempts:${context?.scopeKey ?? "global"}:${email}`,
+          attempts,
+        );
+      },
+      async delete(email, context) {
+        await redis.del(`login-attempts:${context?.scopeKey ?? "global"}:${email}`);
+      },
+    },
+  },
+});
+```
+
 ## API overview
 
 `Passauth(config)` returns:
@@ -204,35 +834,52 @@ await passauth.handler.revokeRefreshToken(user.id);
 ### Passauth initialization API (`Passauth(config)`)
 
 ```ts
-function Passauth<
-  U extends User,
-  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[]
->(config: PassauthConfiguration<U, P>): {
-  handler: Omit<ComposeAug<PassauthHandler<U>, P>, "_aux">;
-  plugins: Record<string, any>;
-}
+const passauth = Passauth({
+  secretKey: "your-secret",
+  repo,
+  saltingRounds: 10,
+  accessTokenExpirationMs: 15 * 60 * 1000,
+  refreshTokenExpirationMs: 7 * 24 * 60 * 60 * 1000,
+  email,
+  passwordPolicy,
+  plugins,
+});
 ```
 
-#### `PassauthConfiguration<U, P>`
+Simplified config shape:
 
 ```ts
-type PassauthConfiguration<U extends User, P = undefined> = {
+type PassauthConfig = {
   secretKey: string;
-  repo: AuthRepo<U>;
+  repo: AuthRepo;
   saltingRounds?: number;
   accessTokenExpirationMs?: number;
   refreshTokenExpirationMs?: number;
   email?: EmailHandlerOptions;
-  plugins?: P;
+  passwordPolicy?: PasswordPolicyConfig;
+  plugins?: unknown[];
 };
 ```
+
+Simplified return value:
+
+```ts
+type PassauthInstance = {
+  handler: PassauthHandler;
+  plugins: Record<string, { handler: unknown }>;
+};
+```
+
+- You normally do not need to write generic types manually. TypeScript usually infers them from your `repo`, your extra params, and your plugins.
+- `handler` is the main auth API you use in the app.
+- `plugins` is an object keyed by plugin name, with each plugin exposing its own `handler`.
 
 #### Configuration fields (detailed)
 
 - `secretKey` (**required**) — `string`  
   Secret used to sign and validate JWT access tokens.
 
-- `repo` (**required**) — `AuthRepo<U>`  
+- `repo` (**required**) — `AuthRepo`  
   Your persistence adapter used by auth operations (lookup user, create user, optional token cache).
 
 - `saltingRounds` (**optional**) — `number` (default: `10`)  
@@ -247,7 +894,10 @@ type PassauthConfiguration<U extends User, P = undefined> = {
 - `email` (**optional**) — `EmailHandlerOptions`  
   Enables email confirmation and reset-password flows when provided.
 
-- `plugins` (**optional**) — `readonly PluginSpec[]`  
+- `passwordPolicy` (**optional**) — `PasswordPolicyConfig`  
+  Enables built-in password validation and failed-login tracking. When set to `true`, passauth uses the default rule set; `{}` is not a valid shortcut.
+
+- `plugins` (**optional**) — `array`  
   List of plugins that can override/extend the handler API.
 
 #### Return value of `Passauth(config)`
@@ -260,6 +910,7 @@ type PassauthConfiguration<U extends User, P = undefined> = {
 You must implement:
 
 - `getUser(param: Partial<User>): Promise<User | null>`
+  - In multi-tenant apps, `param` can include extra fields from `register(...)` or `login(...)`, such as `tenantId`, `workspaceId`, or `provider`.
 - `createUser<P>(params: RegisterParams<P>): Promise<User>`
   - `RegisterParams<P>` always includes `email` and `password`, and can include extra fields.
 
@@ -282,11 +933,11 @@ Creates a new user with a hashed password.
   - `params` (**required**) — `RegisterParams`
     - `email` (**required**) — `string`
     - `password` (**required**) — `string`
-    - Additional fields are supported (`register<T>(params: RegisterParams<T>)`) and forwarded to your `repo.createUser`.
+    - Additional fields are supported (`register<T>(params: RegisterParams<T>)`) and forwarded to both `repo.getUser(...)` and `repo.createUser(...)`.
 - **Returns**
   - `Promise<U>` — the created user entity returned by your repository.
 
-#### `login(params, jwtUserFields?)`
+#### `login(params, config?)`
 Authenticates a user and returns access/refresh tokens.
 
 - **Arguments**
@@ -294,8 +945,8 @@ Authenticates a user and returns access/refresh tokens.
     - `email` (**required**) — `string`
     - `password` (**required**) — `string`
     - Additional fields are supported (`login<T>(params: LoginParams<T>, ...)`) and forwarded to your `repo.getUser`.
-  - `jwtUserFields` (**optional**) — `Array<keyof U>`
-    - If provided, only these user fields are injected into token payload `data`.
+  - `config` (**optional**) — `{ jwtUserFields?: Array<keyof U> }`
+    - If `jwtUserFields` is provided, only these user fields are injected into token payload `data`.
 - **Returns**
   - `Promise<{ accessToken: string; refreshToken: string }>`
 

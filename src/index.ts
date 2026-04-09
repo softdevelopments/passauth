@@ -38,9 +38,14 @@ const validateEmailOptions = (options: EmailHandlerOptions) => {
 
 export const Passauth = <
   U extends User,
-  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[],
+  PasswordParams extends Record<string, unknown> = Record<string, never>,
+  P extends readonly PluginSpec<U, PassauthHandlerInt<U>, any>[] = readonly PluginSpec<
+    U,
+    PassauthHandlerInt<U>,
+    any
+  >[],
 >(
-  options: PassauthConfiguration<U, P>,
+  options: PassauthConfiguration<U, P, PasswordParams>,
 ) => {
   if (!options.secretKey) {
     throw new PassauthMissingConfigurationException("secretKey");
@@ -53,7 +58,7 @@ export const Passauth = <
   }
 
   const sharedComponents = {
-    passauthHandler: new AuthHandler<U>(options, options.repo),
+    passauthHandler: new AuthHandler<U, PasswordParams>(options, options.repo),
     passauthOptions: options,
     plugins: {} as Record<string, any>,
   } as SharedComponents<U>;

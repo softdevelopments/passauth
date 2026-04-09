@@ -42,7 +42,7 @@
     "dist"
   ],
   "scripts": {
-    "test": "jest --runInBand --detectOpenHandles --forceExit",
+    "test": "jest --verbose --runInBand --detectOpenHandles --forceExit",
     "build": "tsc && tsc-esm-fix",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint --fix && prettier --write .",
