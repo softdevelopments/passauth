@@ -151,9 +151,7 @@ export class AuthHandler<
       });
     }
 
-    const existingUser = await this.repo.getUser({
-      email: params.email,
-    } as Partial<U>);
+    const existingUser = await this.repo.getUser(params as Partial<U>);
 
     if (existingUser) {
       throw new PassauthEmailAlreadyTakenException();
