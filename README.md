@@ -36,92 +36,6 @@ import {
 } from "passauth/auth/utils";
 ```
 
-### Utils API (`passauth/auth/utils`)
-
-#### `hash(password, saltingRounds)`
-Creates a bcrypt hash from a plain password.
-
-- **Parameters**
-  - `password` (**required**) — `string`  
-    Plain password to hash.
-  - `saltingRounds` (**required**) — `number`  
-    Number of salt rounds used by bcrypt.
-- **Returns**
-  - `Promise<string>` — generated password hash.
-
-#### `compareHash(value, hash)`
-Compares a plain value against a bcrypt hash.
-
-- **Parameters**
-  - `value` (**required**) — `string`  
-    Plain text value (typically a password).
-  - `hash` (**required**) — `string`  
-    Previously generated bcrypt hash.
-- **Returns**
-  - `Promise<boolean>` — `true` when value matches the hash, otherwise `false`.
-
-#### `generateAccessToken({ userId, secretKey, expiresIn, data? })`
-Generates a signed JWT access token.
-
-- **Parameters**
-  - `userId` (**required**) — `ID`  
-    User identifier used as JWT `sub` claim.
-  - `secretKey` (**required**) — `string`  
-    Secret used to sign the token.
-  - `expiresIn` (**required**) — `number`  
-    Token expiration value passed to JWT signing.
-  - `data` (**optional**) — `D`  
-    Additional custom payload attached to token `data` field.
-- **Returns**
-  - `string` — signed JWT token.
-
-#### `generateRefreshToken({ expiresIn })`
-Generates a refresh token payload.
-
-- **Parameters**
-  - `expiresIn` (**required**) — `number`  
-    Expiration interval in milliseconds.
-- **Returns**
-  - `{ token: string; exp: number }` — random token and absolute expiration timestamp (`Date.now() + expiresIn`).
-
-#### `verifyAccessToken(token, secretKey)`
-Verifies and decodes a JWT access token.
-
-- **Parameters**
-  - `token` (**required**) — `string`  
-    JWT access token.
-  - `secretKey` (**required**) — `string`  
-    Secret used to validate token signature.
-- **Returns**
-  - `AuthJwtPayload<D>` — decoded JWT payload.
-- **Throws**
-  - `PassauthInvalidAccessTokenException` when token is invalid or expired.
-
-#### `decodeAccessToken(token)`
-Decodes a JWT access token **without signature validation**.
-
-- **Parameters**
-  - `token` (**required**) — `string`  
-    JWT access token.
-- **Returns**
-  - `AuthJwtPayload<D>` — decoded payload.
-
-#### `generateToken()`
-Generates a random hexadecimal token.
-
-- **Parameters**
-  - None.
-- **Returns**
-  - `string` — random 32-char hex token.
-
-#### `AuthJwtPayload<Data>`
-Type helper that describes access token payload returned by decode/verify helpers.
-
-- **Shape**
-  - Extends `JwtPayload`
-  - `sub: ID`
-  - `data: Data | undefined`
-
 ## Requirements
 
 - Node.js runtime
@@ -129,6 +43,10 @@ Type helper that describes access token payload returned by decode/verify helper
 - A `secretKey` for JWT signing
 
 ## Quick start
+
+This example stores users in an in-memory `Map` to keep the setup small. In a
+real application, implement `AuthRepo` with your persistence layer, such as
+Sequelize models, instead of the `Map`.
 
 ```ts
 import { Passauth, type AuthRepo, type User } from "passauth";
@@ -204,7 +122,7 @@ This works well for applications where:
 
 - The same email can exist in multiple tenants
 - Each tenant has its own password policy
-- Failed login attempts must be isolated per tenant
+- Failed login attempts are isolated per tenant
 - Email confirmation and reset-password links need tenant-specific routing
 
 ### How tenant context moves through passauth
@@ -1026,6 +944,92 @@ Validates the email confirmation token and marks email as confirmed via your ema
     `key` must match the one used when the confirmation token was generated. `linkParams` are forwarded to `email.repo.confirmEmail(...)`.
 - **Returns**
   - `Promise<void>`
+
+### Utils API (`passauth/auth/utils`)
+
+#### `hash(password, saltingRounds)`
+Creates a bcrypt hash from a plain password.
+
+- **Parameters**
+  - `password` (**required**) — `string`  
+    Plain password to hash.
+  - `saltingRounds` (**required**) — `number`  
+    Number of salt rounds used by bcrypt.
+- **Returns**
+  - `Promise<string>` — generated password hash.
+
+#### `compareHash(value, hash)`
+Compares a plain value against a bcrypt hash.
+
+- **Parameters**
+  - `value` (**required**) — `string`  
+    Plain text value (typically a password).
+  - `hash` (**required**) — `string`  
+    Previously generated bcrypt hash.
+- **Returns**
+  - `Promise<boolean>` — `true` when value matches the hash, otherwise `false`.
+
+#### `generateAccessToken({ userId, secretKey, expiresIn, data? })`
+Generates a signed JWT access token.
+
+- **Parameters**
+  - `userId` (**required**) — `ID`  
+    User identifier used as JWT `sub` claim.
+  - `secretKey` (**required**) — `string`  
+    Secret used to sign the token.
+  - `expiresIn` (**required**) — `number`  
+    Token expiration value passed to JWT signing.
+  - `data` (**optional**) — `D`  
+    Additional custom payload attached to token `data` field.
+- **Returns**
+  - `string` — signed JWT token.
+
+#### `generateRefreshToken({ expiresIn })`
+Generates a refresh token payload.
+
+- **Parameters**
+  - `expiresIn` (**required**) — `number`  
+    Expiration interval in milliseconds.
+- **Returns**
+  - `{ token: string; exp: number }` — random token and absolute expiration timestamp (`Date.now() + expiresIn`).
+
+#### `verifyAccessToken(token, secretKey)`
+Verifies and decodes a JWT access token.
+
+- **Parameters**
+  - `token` (**required**) — `string`  
+    JWT access token.
+  - `secretKey` (**required**) — `string`  
+    Secret used to validate token signature.
+- **Returns**
+  - `AuthJwtPayload<D>` — decoded JWT payload.
+- **Throws**
+  - `PassauthInvalidAccessTokenException` when token is invalid or expired.
+
+#### `decodeAccessToken(token)`
+Decodes a JWT access token **without signature validation**.
+
+- **Parameters**
+  - `token` (**required**) — `string`  
+    JWT access token.
+- **Returns**
+  - `AuthJwtPayload<D>` — decoded payload.
+
+#### `generateToken()`
+Generates a random hexadecimal token.
+
+- **Parameters**
+  - None.
+- **Returns**
+  - `string` — random 32-char hex token.
+
+#### `AuthJwtPayload<Data>`
+Type helper that describes access token payload returned by decode/verify helpers.
+
+- **Shape**
+  - Extends `JwtPayload`
+  - `sub: ID`
+  - `data: Data | undefined`
 
 ## Optional email flows
 
